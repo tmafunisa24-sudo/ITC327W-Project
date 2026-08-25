@@ -1,5 +1,3 @@
-﻿# 📋 Planning, Requirements and Feasibility
-
 ## Project Overview
 
 **Project Title:** Planning, Requirements and Feasibility  
