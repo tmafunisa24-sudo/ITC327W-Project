@@ -38,8 +38,8 @@ These technologies were selected for their scalability, developer productivity, 
 | 5  | Hlalele D         | 221003431      | Technical Feasibility                         |
 | 6  | Ndlovu N          | 223038645      | Feasibility Analyst (Economic, Schedule, etc.)|
 | 7  | Taibosch K        | 222001440      | Risk Manager                                  |
-| 8  | Molefe B          | 223019042      | Microsoft Project Manager                     |
-| 9  | Lesenyeho LJ      | 223002326      | GitHub & Progress Tracker Lead                |
+| 8  | Molefe B          | 223019042      | GitHub & Progress Tracker Lead                |
+| 9  | Lesenyeho LJ      | 223002326      | Microsoft Project Manager                     |
 | 10 | Winkel K          | 221011353      | Documentation & Defence Lead                  |
 
 ---
