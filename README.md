@@ -1,7 +1,20 @@
 ﻿Project title: Planning, Requirements and Feasibility
+ //Click Computer And Accessories 
 Project description: Brief explanation of the stakeholder problem
+
 Technologies: Flutter, ASP.NET and Supabase
-Group members: Lesako M, Tladi K,  Nosenga B,  Mafunisa T, Hlalele D, Ndlovu N,  Taibosch K, Molefe B,  Lesenyeho LJ, Winkel K
-               221007662, 221010874,223066258, 222066258,  221003431, 223038645, 222001440,  223019042, 223002326,    221011353
+
+Group members:
+Lesako M - 221007662
+Tladi K - 221010874
+Nosenga B - 223066258
+Mafunisa T - 222066258
+Hlalele D - 221003431
+Ndlovu N - 223038645
+Taibosch K - 222001440
+Molefe B - 223019042
+Lesenyeho LJ - 223002326
+Winkel K - 221011353
+
 Current project stage: Planning and requirements
 
