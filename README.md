@@ -32,15 +32,15 @@ These technologies were selected for their scalability, developer productivity, 
 | #  | Member Name       | Student Number | Role(s)                                       |
 |----|-------------------|----------------|-----------------------------------------------|
 | 1  | Lesako M          | 221007662      | Project Leader (Coordination & Integration)   |
-| 2  | Tladi K           | 221010874      | Requirements Lead                             |
-| 3  | Nosenga B         | 223066258      | Stakeholder Lead                              |
-| 4  | Mafunisa T        | 222066258      | Solution Architect                            |
-| 5  | Hlalele D         | 221003431      | Technical Feasibility                         |
-| 6  | Ndlovu N          | 223038645      | Feasibility Analyst (Economic, Schedule, etc.)|
-| 7  | Taibosch K        | 222001440      | Risk Manager                                  |
-| 8  | Molefe B          | 223019042      | GitHub & Progress Tracker Lead                |
-| 9  | Lesenyeho LJ      | 223002326      | Microsoft Project Manager                     |
-| 10 | Winkel K          | 221011353      | Documentation & Defence Lead                  |
+| 2  | Tladi K           | 221010874      | Stakeholder Analyst                           |
+| 3  | Nosenga B         | 223066258      | Github & Presentation lead                    |
+| 4  | Mafunisa T        | 222066258      | Solution/Technical Architect                  |
+| 5  | Hlalele D         | 221003431      | Requirements Analyst                          |
+| 6  | Ndlovu N          | 223038645      | Risk Register                                 |
+| 7  | Taibosch K        | 222001440      | Problem Analyst                               |
+| 8  | Molefe B          | 223019042      | Feasibility Analyst                           |
+| 9  | Lesenyeho LJ      | 223002326      | Project Planner                               |
+| 10 | Winkel K          | 221011353      | Documentation & Quality Controller            |
 
 ---
 
@@ -50,14 +50,14 @@ These technologies were selected for their scalability, developer productivity, 
 
 ### Completed / In Progress:
 - [x] Team formation and role allocation
-- [x] Stakeholder identification and problem analysis (first draft)
-- [x] Functional and non-functional requirements (first draft)
-- [x] Solution architecture (in progress)
+- [x] Stakeholder identification and problem analysis 
+- [x] Functional and non-functional requirements 
+- [x] Solution architecture 
 - [x] Feasibility analysis (technical, economic, schedule, legal, ethical – in progress)
-- [x] Risk register (first draft)
-- [x] Microsoft Project schedule (initial setup)
-- [ ] Final integration and cross-check reviews
-- [ ] Final submission package
+- [x] Risk register 
+- [ ] Microsoft Project schedule (in progress)
+- [ ] Final integration and cross-check reviews (in progress)
+- [ ] Final submission package (in progress)
 
 ---
 
@@ -80,12 +80,20 @@ These technologies were selected for their scalability, developer productivity, 
 ## 📌 How to Contribute (Team Guidelines)
 
 1. **Branches:**  
-   - `main` – final, stable version  
-   - `feature/flutter` – frontend work  
-   - `feature/aspnet` – backend API work  
-   - `feature/supabase` – database setup  
-   - `feature/testing` – testing and validation  
-   - `feature/documentation` – documentation updates  
+   - `main` – final, stable version
+   - `main/docs` - all project documents (SRS, business case, etc ...)
+   - `main/docs/stakeholder` - stakeholder documents
+   - `main/docs/requirements` - requirements analysis
+   - `main/docs/feasibility` - feasibility analysis 
+   - `main/docs/risks` - risk register 
+   - `main/docs/meetings` - stakeholder meetings
+   - `main/docs/architecture` - technical architecture (tech stack) documentation
+   - `main/web` - aspnet work
+   - `main/mobile` - flutter application work
+   - `main/database` - database setup (supabase)
+   - `main/testing` - testing & validation
+   - `main/project-management` - project management applications & tools
+  
 
 2. **Pull Requests:**  
    - All changes must be submitted via pull requests and reviewed by at least one other member.  
