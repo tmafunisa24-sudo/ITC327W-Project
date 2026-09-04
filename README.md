@@ -52,6 +52,7 @@ This project aims to develop a **simple client-support platform** that enables c
 
 ## 📂 Repository Structure
 
+```
 ITC327W-Project/
 │
 ├── README.md # Project overview and documentation
@@ -101,7 +102,7 @@ ITC327W-Project/
 │
 └── testing/ # Test plans and scripts
 └── test_plan_draft.md
-
+```
 ---
 
 ## 📋 Key Deliverables (Phase 1)
