@@ -46,7 +46,7 @@ This project aims to develop a **simple client-support platform** that enables c
 | 7 | Mafunisa T | 222033930 | Technical Architecture |
 | 8 | Lesenyeho LJ | 223002326 | Project Planner |
 | 9 | Winkel K | 221011353 | Documentation and Quality Controller |
-| 10 | Nosenga B | 223066258 | GitHub and Supabase Lead |
+| 10 | Nosenga B | 223066258 | GitHub and Presentation Lead |
 
 ---
 
@@ -156,7 +156,7 @@ ITC327W-Project/
 | Resource | Link |
 |----------|------|
 | **GitHub Repository** | https://github.com/tmafunisa24-sudo/ITC327W-Project |
-| **SRS Document** | [docs/requirements/SRS_draft.md](./docs/requirements/SRS_draft.md) |
+| **SRS Document** | `docs/stakeholder/Click_Computer_and_Accessories_SRS_Phase_1` |
 | **Progress Tracker** | `project-management/ITC327W_Project_Progress_Tracker_2026.xlsx` |
 | **MS Project Plan** | `project-management/Group_T_Project_Plan.mpp` |
 | **Presentation** | `docs/presentation/Phase1_Presentation.pptx` |
@@ -210,7 +210,7 @@ For any project-related queries, please raise an issue in this repository or con
 
 ## 📝 License
 
-This project is developed for academic purposes as part of the ITC327W module at [University Name]. All rights reserved.
+This project is developed for academic purposes as part of the ITC327W module at Central University of Technology. All rights reserved.
 
 ---
 
