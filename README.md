@@ -1,7 +1,0 @@
-﻿Project title: Planning, Requirements and Feasibility
-Project description: Brief explanation of the stakeholder problem
-Technologies: Flutter, ASP.NET and Supabase
-Group members: Lesako M, Tladi K,  Nosenga B,  Mafunisa T, Hlalele D, Ndlovu N,  Taibosch K, Molefe B,  Lesenyeho LJ, Winkel K
-               221007662, 221010874,223066258, 222066258,  221003431, 223038645, 222001440,  223019042, 223002326,    221011353
-Current project stage: Planning and requirements
-
