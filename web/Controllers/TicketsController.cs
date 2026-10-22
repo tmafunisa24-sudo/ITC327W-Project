@@ -751,17 +751,22 @@ public class TicketsController : Controller
         return nextIndex == currentIndex + 1 || (currentIndex == 0 && nextIndex == 1) || (currentIndex == 3 && nextIndex == 4);
     }
 
-    private static string NormalizeStatus(string status)
+   
+private static string NormalizeStatus(string? status)
+{
+    if (string.IsNullOrWhiteSpace(status))
+        return string.Empty;
+
+    return status.Trim().ToLowerInvariant() switch
     {
-        return status switch
-        {
-            "Open" => "Open",
-            "Assigned" => "Assigned",
-            "In Progress" => "In Progress",
-            "Resolved" => "Resolved",
-            "Closed" => "Closed",
-            _ => status
-        };
-    }
+        "open" => "Open",
+        "assigned" => "Assigned",
+        "in progress" => "In Progress",
+        "resolved" => "Resolved",
+        "closed" => "Closed",
+        _ => string.Empty
+    };
+}
+
 
 }
