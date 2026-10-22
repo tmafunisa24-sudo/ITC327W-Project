@@ -208,11 +208,7 @@ serviceCatalogId.addEventListener('change', () => {
     problemType.value = selected && !selected.hidden ? selected.textContent.trim() : '';
     title.value = problemType.value ? `${deviceType.value} repair: ${problemType.value}` : '';
 });
-        serviceCatalogId.addEventListener('change', () => {
-            const selected = serviceCatalogId.selectedOptions[0];
-            problemType.value = selected && !selected.hidden ? selected.textContent.trim() : '';
-            title.value = problemType.value ? `${deviceType.value} repair: ${problemType.value}` : '';
-        });
+
 repairRequestForm.addEventListener('submit', (event) => {
     const missingSelection =
         !deviceType.value ||
