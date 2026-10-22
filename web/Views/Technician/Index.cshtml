@@ -1,0 +1,104 @@
+@model ServiceHub_IT.DTOs.TechnicianDashboardViewModel
+@{
+    ViewData["Title"] = "Technician Dashboard";
+    Layout = "_Layout";
+}
+
+<div class="dashboard-page container-fluid">
+    <div class="dashboard-header">
+        <div>
+            <span class="hero-badge"><i class="bi bi-tools"></i> Technician</span>
+            <h1>Technician Dashboard</h1>
+            <p>See your assigned work, due dates, and assets in one refined IT service workspace.</p>
+        </div>
+        <div class="topbar-pill"><i class="bi bi-calendar2-check me-2"></i>Service queue</div>
+    </div>
+
+    <div class="dashboard-stats">
+        <div class="summary-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@Model.CompletedCount</div>
+                    <div class="stat-label">Completed Tasks</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@Model.DueSoonCount</div>
+                    <div class="stat-label">Pending Tasks</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-7">
+            <div class="table-card">
+                <div class="p-4">
+                    <h5 class="mb-3">Assigned Tickets</h5>
+                    @if (Model.Tickets.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Status</th>
+                                        <th>Due Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var ticket in Model.Tickets)
+                                    {
+                                        <tr>
+                                            <td><a asp-controller="Tickets" asp-action="Details" asp-route-id="@ticket.id">@ticket.title</a></td>
+                                            <td><span class="badge bg-secondary">@ticket.status</span></td>
+                                            <td>@(ticket.due_date?.ToString("dd MMM yyyy") ?? "Not set")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state mt-3">
+                            <i class="bi bi-tools"></i>
+                            <h3>No tickets assigned</h3>
+                            <p>There are currently no tickets in your queue.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="table-card">
+                <div class="p-4">
+                    <h5 class="mb-3">Assigned Assets</h5>
+                    @if (Model.Assets.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var asset in Model.Assets)
+                            {
+                                <li class="list-group-item">@asset.asset_name (@asset.status)</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <i class="bi bi-hdd-stack"></i>
+                            <h3>No assets assigned</h3>
+                            <p>Assigned assets will appear here once available.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

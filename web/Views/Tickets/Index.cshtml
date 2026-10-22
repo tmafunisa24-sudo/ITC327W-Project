@@ -1,0 +1,215 @@
+@model IReadOnlyList<ServiceHub_IT.Models.Ticket>
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Tickets";
+    var isAdmin = User?.IsInRole("Admin") == true;
+    var isTechnician = User?.IsInRole("Technician") == true;
+    var technicians = ViewBag.Technicians as IEnumerable<ServiceHub_IT.Models.Profile> ?? Enumerable.Empty<ServiceHub_IT.Models.Profile>();
+    string AssignedTechnicianName(ServiceHub_IT.Models.Ticket ticket)
+    {
+        if (ticket.technician_id.HasValue)
+        {
+            var profile = technicians.FirstOrDefault(technician => technician.Id == ticket.technician_id.Value);
+            return profile is null ? ticket.technician_id.Value.ToString() : (!string.IsNullOrWhiteSpace(profile.FullName) ? profile.FullName : profile.Email);
+        }
+
+        return string.IsNullOrWhiteSpace(ticket.assigned_technician) ? "Unassigned" : ticket.assigned_technician;
+    }
+    var totalTickets = Model.Count();
+    var activeTickets = Model.Count(ticket => !string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase) && !string.Equals(ticket.status, "Closed", StringComparison.OrdinalIgnoreCase));
+    var resolvedTickets = Model.Count(ticket => string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase));
+    var unassignedTickets = Model.Count(ticket => !ticket.technician_id.HasValue && string.IsNullOrWhiteSpace(ticket.assigned_technician));
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tickets.css" asp-append-version="true" />
+}
+
+<div class="ticket-page">
+    <div class="ticket-header">
+        <div class="ticket-title-area">
+            <span class="ticket-header-badge"><i class="bi bi-ticket-detailed"></i> ServiceHub IT</span>
+            <h1>@(isAdmin ? "Ticket Management" : isTechnician ? "Assigned Tickets" : "My Tickets")</h1>
+            <p>@(isAdmin ? "Review support requests and ticket progress from one professional workspace." : isTechnician ? "Review the work queue and advance assigned requests efficiently." : "Track the status and progress of your submitted support requests.")</p>
+        </div>
+        @if (!isAdmin && !isTechnician)
+        {
+            <a asp-controller="Tickets" asp-action="Create" class="btn btn-primary btn-create-ticket"><i class="bi bi-plus-lg me-2"></i>Create Ticket</a>
+        }
+    </div>
+
+    <div class="ticket-alerts">
+        @if (TempData["Success"] is string successMessage)
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+        else if (TempData["Error"] is string errorMessage)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+    </div>
+
+    <div class="ticket-stats">
+        <div class="stat-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@totalTickets</div>
+                    <div class="stat-label">Total Tickets</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-list-task"></i></div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@activeTickets</div>
+                    <div class="stat-label">Open / Active</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-lightning-charge"></i></div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@resolvedTickets</div>
+                    <div class="stat-label">Resolved</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@unassignedTickets</div>
+                    <div class="stat-label">Unassigned</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-person-dash"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ticket-container">
+        @if (Model.Any())
+        {
+            <div class="ticket-table-wrapper">
+                <table class="ticket-table">
+                    <thead>
+                        <tr>
+                            <th>Ticket ID</th>
+                            <th>Ticket Number</th>
+                            <th>Device</th>
+                            <th>Problem</th>
+                            @if (isAdmin)
+                            {
+                                <th>Requester</th>
+                            }
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Assigned Technician</th>
+                            <th>Due Date</th>
+                            <th>Created</th>
+                            <th>Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ticket in Model)
+                        {
+                                var priorityText = string.IsNullOrWhiteSpace(ticket.priority) ? "Medium" : ticket.priority.Trim();
+                                var statusText = string.IsNullOrWhiteSpace(ticket.status) ? "Open" : ticket.status.Trim();
+                                var statusKey = statusText.ToLowerInvariant();
+                                var statusClass = statusKey == "open" ? "status-open"
+                                    : statusKey == "assigned" ? "status-assigned"
+                                    : statusKey == "in progress" ? "status-progress"
+                                    : statusKey == "resolved" ? "status-resolved"
+                                    : statusKey == "closed" ? "status-closed"
+                                    : "status-closed";
+                            <tr>
+                                <td><span class="ticket-id">@(ticket.ticket_number ?? ticket.id)</span></td>
+                                <td>@(ticket.device_type ?? "Not specified")</td>
+                                <td><div class="ticket-title">@(ticket.problem_type ?? ticket.title)</div></td>
+                                @if (isAdmin)
+                                {
+                                    <td>
+                                        <div class="ticket-requester">
+                                            @if (string.IsNullOrWhiteSpace(ticket.requester))
+                                            {
+                                                <span class="requester-muted">Not provided</span>
+                                            }
+                                            else
+                                            {
+                                                @ticket.requester
+                                            }
+                                        </div>
+                                    </td>
+                                }
+                                <td>
+                                    <span class="priority-badge @(string.Equals(priorityText, "High", StringComparison.OrdinalIgnoreCase) ? "priority-high" : string.Equals(priorityText, "Critical", StringComparison.OrdinalIgnoreCase) ? "priority-critical" : string.Equals(priorityText, "Low", StringComparison.OrdinalIgnoreCase) ? "priority-low" : "priority-medium")">
+                                        @priorityText
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge status-badge @statusClass">@statusText</span>
+                                </td>
+                                <td>
+                                    @if (!ticket.technician_id.HasValue && string.IsNullOrWhiteSpace(ticket.assigned_technician))
+                                    {
+                                        <span class="ticket-assigned tech-muted">Unassigned</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="ticket-assigned tech-name">@AssignedTechnicianName(ticket)</span>
+                                    }
+                                </td>
+                                <td><span class="ticket-date @(ticket.due_date is null ? "date-muted" : string.Empty)">@(ticket.due_date is null ? "Not set" : ticket.due_date.Value.ToString("dd MMM yyyy"))</span></td>
+                                <td><span class="ticket-date">@(ticket.created_at is null ? "—" : ticket.created_at.Value.ToString("dd MMM yyyy"))</span></td>
+                                <td><span class="ticket-date">@(ticket.updated_at is null ? "—" : ticket.updated_at.Value.ToString("dd MMM yyyy"))</span></td>
+                                <td>
+                                    <div class="actions">
+                                        <a asp-controller="Tickets" asp-action="Details" asp-route-id="@ticket.id" class="btn btn-view btn-sm"><i class="bi bi-eye me-1"></i>View</a>
+                                        @if (isAdmin)
+                                        {
+                                            <div class="action-row">
+                                                <form asp-controller="Tickets" asp-action="UpdateStatus" asp-route-id="@ticket.id" method="post" class="action-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <select name="Status" class="ticket-select">
+                                                        <option value="Open" selected="@(string.Equals(ticket.status, "Open", StringComparison.OrdinalIgnoreCase))">Open</option>
+                                                        <option value="Assigned" selected="@(string.Equals(ticket.status, "Assigned", StringComparison.OrdinalIgnoreCase))">Assigned</option>
+                                                        <option value="In Progress" selected="@(string.Equals(ticket.status, "In Progress", StringComparison.OrdinalIgnoreCase))">In Progress</option>
+                                                        <option value="Resolved" selected="@(string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase))">Resolved</option>
+                                                        <option value="Closed" selected="@(string.Equals(ticket.status, "Closed", StringComparison.OrdinalIgnoreCase))">Closed</option>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-status btn-sm">Change</button>
+                                                </form>
+                                            </div>
+                                            <div class="action-row">
+                                                <form asp-controller="Tickets" asp-action="UpdateDueDate" asp-route-id="@ticket.id" method="post" class="action-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="returnToIndex" value="true" />
+                                                    <input type="date" name="dueDate" class="ticket-date-input" value="@(ticket.due_date?.ToString("yyyy-MM-dd"))" aria-label="Due date" />
+                                                    <button type="submit" class="btn btn-status btn-sm">Save Date</button>
+                                                </form>
+                                            </div>
+                                            <form asp-controller="Tickets" asp-action="Delete" asp-route-id="@ticket.id" method="post" data-confirm="true" class="action-form">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-delete btn-sm">Delete</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>No tickets found</h3>
+                <p>There are currently no support tickets to display.</p>
+            </div>
+        }
+    </div>
+</div>
