@@ -170,6 +170,7 @@ public class TicketsController : Controller
                 TempData.Remove("Success");
                 TempData["Error"] = "Unable to create the ticket right now.";
                 _logger.LogError("TicketsController.Create CreateTicketAsync returned false for ticket title {Title}.", ticket.title);
+                ViewBag.ServiceCatalog = catalog;
                 return View(model);
             }
 
@@ -319,6 +320,7 @@ public class TicketsController : Controller
             TempData.Remove("Success");
             TempData["Error"] = "Unable to create the ticket right now.";
             _logger.LogError(ex, "TicketsController.Create exception while creating ticket for title {Title}.", ticket.title);
+            ViewBag.ServiceCatalog = catalog;
             return View(model);
         }
     }
