@@ -1,114 +1,91 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServiceHub_IT.Models;
-using System.Text;
 using ServiceHub_IT.Services;
 
 namespace ServiceHub_IT.Controllers;
 
-[Authorize]
-public class ReportsController : Controller
+[Authorize(Roles = "Admin,Technician")]
+public sealed class ReportsController : Controller
 {
     private readonly ReportService _reportService;
-    private readonly HttpClient _httpClient;
-    private readonly SupabaseSettings _settings;
 
-    public ReportsController(ReportService reportService, HttpClient httpClient, Microsoft.Extensions.Options.IOptions<SupabaseSettings> options)
+    public ReportsController(ReportService reportService)
     {
         _reportService = reportService;
-        _httpClient = httpClient;
-        _settings = options.Value;
     }
 
     [HttpGet]
-    public IActionResult Index(ReportFilterViewModel model)
+    public IActionResult Index()
     {
-        return View(model);
+        return View(new ReportFilterViewModel());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Generate(ReportFilterViewModel model, CancellationToken cancellationToken)
     {
-        var rows = await FetchRowsAsync(model.ReportType, model.StartDate, model.EndDate, cancellationToken);
-        ViewBag.Rows = rows;
-        ViewBag.ReportType = model.ReportType;
-        ViewBag.StartDate = model.StartDate;
-        ViewBag.EndDate = model.EndDate;
-        return View("Preview", model);
+        if (!ModelState.IsValid)
+        {
+            return View("Index", model);
+        }
+
+        var report = await LoadReportAsync(model, cancellationToken);
+        return View("Preview", report);
     }
 
     [HttpGet]
-    public async Task<IActionResult> Export(string type, string reportType, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
+    public async Task<IActionResult> Export(string type, [FromQuery] ReportFilterViewModel model, CancellationToken cancellationToken)
     {
-        var rows = await FetchRowsAsync(reportType, startDate, endDate, cancellationToken);
-
-        if (type == "excel")
+        if (!ModelState.IsValid || (type != "csv" && type != "excel"))
         {
-            var stream = await _reportService.GenerateExcelAsync(reportType, rows, cancellationToken);
-            return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{reportType.ToLower()}-report.xlsx");
+            ModelState.AddModelError(string.Empty, "The requested export or its filters are invalid.");
+            return View("Index", model);
         }
 
+        var report = await LoadReportAsync(model, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(report.ErrorMessage))
+        {
+            return View("Index", report);
+        }
+
+        var fileName = $"{GetFileName(report.ReportType)}-report";
         if (type == "csv")
         {
-            var csv = _reportService.BuildCsv(rows);
-            return File(Encoding.UTF8.GetBytes(csv), "text/csv", $"{reportType.ToLower()}-report.csv");
+            var csv = _reportService.BuildCsv(report);
+            var bytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray();
+            return File(bytes, "text/csv; charset=utf-8", $"{fileName}.csv");
         }
 
-        return RedirectToAction(nameof(Index));
+        var workbook = _reportService.GenerateExcel(report);
+        return File(workbook.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{fileName}.xlsx");
     }
 
     [HttpGet]
-    public async Task<IActionResult> Print(string reportType, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
+    public async Task<IActionResult> Print([FromQuery] ReportFilterViewModel model, CancellationToken cancellationToken)
     {
-        var rows = await FetchRowsAsync(reportType, startDate, endDate, cancellationToken);
-        ViewBag.Rows = rows;
-        ViewBag.ReportType = reportType;
-        return View("Print", rows);
+        if (!ModelState.IsValid)
+        {
+            ModelState.AddModelError(string.Empty, "The requested report filters are invalid.");
+            return View("Index", model);
+        }
+
+        var report = await LoadReportAsync(model, cancellationToken);
+        return View("Print", report);
     }
 
-    private async Task<List<Dictionary<string, object?>>> FetchRowsAsync(string reportType, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
+    private Task<ReportFilterViewModel> LoadReportAsync(ReportFilterViewModel model, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey))
-        {
-            return new List<Dictionary<string, object?>>();
-        }
+        var accessToken = User.FindFirstValue("supabase_access_token");
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+        var profileId = User.FindFirstValue("profile_id") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return _reportService.GenerateReportAsync(model, accessToken, role, profileId, cancellationToken);
+    }
 
-        var table = reportType.ToLowerInvariant() switch
-        {
-            "assets" => "assets",
-            "clients" => "profiles",
-            "tickets" => "tickets",
-            "departments" => "departments",
-            "maintenance" => "maintenance",
-            "technician performance" => "tickets",
-            _ => "assets"
-        };
-
-        var query = new List<string> { "select=*" };
-        if (startDate is not null)
-        {
-            query.Add($"created_at=gte.{startDate:yyyy-MM-dd}");
-        }
-        if (endDate is not null)
-        {
-            query.Add($"created_at=lte.{endDate:yyyy-MM-dd}");
-        }
-
-        var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/{table}?{string.Join('&', query)}";
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-        _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-        _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-        using var response = await _httpClient.GetAsync(endpoint, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            return new List<Dictionary<string, object?>>();
-        }
-
-        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
-        var data = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, System.Text.Json.JsonElement>>>(payload, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<Dictionary<string, System.Text.Json.JsonElement>>();
-        return data.Select(item => item.ToDictionary(kvp => kvp.Key, kvp => (object?)(kvp.Value.ValueKind == System.Text.Json.JsonValueKind.String ? kvp.Value.GetString() : kvp.Value.ToString()))).ToList();
+    private static string GetFileName(string reportType)
+    {
+        return string.Concat(reportType.ToLowerInvariant().Select(character =>
+            char.IsLetterOrDigit(character) ? character : '-')).Trim('-');
     }
 }
