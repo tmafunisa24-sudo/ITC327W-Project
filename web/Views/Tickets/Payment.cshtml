@@ -1,0 +1,36 @@
+@model ServiceHub_IT.Models.Ticket
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Payment Method";
+}
+
+<div class="ticket-page ticket-detail-page">
+    <div class="ticket-header">
+        <div class="ticket-title-area">
+            <span class="ticket-header-badge"><i class="bi bi-credit-card"></i> Payment Method</span>
+            <h1>How would you like to pay?</h1>
+            <p>Repair request submitted successfully.</p>
+        </div>
+    </div>
+
+    <div class="ticket-container">
+        <div class="ticket-detail-card">
+            <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+            <form asp-controller="Tickets" asp-action="Payment" asp-route-id="@Model.id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="mb-4">
+                    <div class="detail-label">Payment Method</div>
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="radio" name="PaymentMethod" id="paymentCard" value="Card" />
+                        <label class="form-check-label" for="paymentCard">Card</label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="radio" name="PaymentMethod" id="paymentCash" value="Cash" />
+                        <label class="form-check-label" for="paymentCash">Cash</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Confirm Payment Method</button>
+            </form>
+        </div>
+    </div>
+</div>

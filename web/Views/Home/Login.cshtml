@@ -1,0 +1,103 @@
+@{
+    ViewData["Title"] = "Login";
+    Layout = "_LoginLayout";
+}
+
+<style>
+    .password-input-wrap {
+        position: relative;
+    }
+
+    .password-input-wrap .form-control {
+        padding-right: 2.9rem;
+    }
+
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 0.65rem;
+        transform: translateY(-50%);
+        z-index: 5;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border: 1px solid rgba(108, 117, 125, 0.15);
+        background: rgba(255, 255, 255, 0.8);
+        color: #475569;
+        border-radius: 0.5rem;
+        padding: 0;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .password-toggle:hover,
+    .password-toggle:focus-visible {
+        color: #0d6efd;
+        background: rgba(13, 110, 253, 0.08);
+        outline: none;
+    }
+
+    .password-toggle i {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-lg border-0 rounded-4 p-4">
+            <h3 class="fw-semibold mb-3">Sign in</h3>
+            <p class="text-muted">Access your ServiceHub IT workspace.</p>
+            <form>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" placeholder="name@company.com" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <div class="password-input-wrap">
+                        <input type="password" class="form-control" placeholder="Enter password" />
+                        <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                <button class="btn btn-primary w-100">Continue</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        document.querySelectorAll('[data-password-toggle]').forEach((toggle) => {
+            const input = toggle.closest('.password-input-wrap')?.querySelector('input');
+            if (!input) {
+                return;
+            }
+
+            const icon = toggle.querySelector('i');
+            const setVisible = (isVisible) => {
+                input.type = isVisible ? 'text' : 'password';
+                toggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+                toggle.setAttribute('aria-pressed', String(isVisible));
+
+                if (icon) {
+                    icon.classList.toggle('bi-eye', !isVisible);
+                    icon.classList.toggle('bi-eye-slash', isVisible);
+                }
+            };
+
+            toggle.addEventListener('click', (event) => {
+                event.preventDefault();
+                const nextVisible = input.type !== 'text';
+                setVisible(nextVisible);
+                input.focus();
+                const end = input.value.length;
+                input.setSelectionRange(end, end);
+            });
+        });
+    })();
+</script>

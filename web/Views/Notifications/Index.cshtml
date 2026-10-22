@@ -1,0 +1,120 @@
+@model IEnumerable<ServiceHub_IT.Models.Notification>
+@{
+    ViewData["Title"] = "Notifications";
+    Layout = "_Layout";
+    var notifications = Model.OrderByDescending(n => n.created_at).ToList();
+    var unreadCount = notifications.Count(n => !n.is_read);
+}
+
+<div class="container-fluid px-0">
+    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1>Notifications</h1>
+            <p class="text-muted mb-0">A single place for ticket updates, assignment alerts, admin events, and asset activity.</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <span class="badge bg-primary py-2 px-3">Unread: @unreadCount</span>
+            <form asp-action="MarkAllAsRead" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-secondary">Mark all as read</button>
+            </form>
+        </div>
+    </div>
+
+    @if (!notifications.Any())
+    {
+        <div class="card p-5 text-center">
+            <i class="bi bi-bell-slash fs-1 text-muted"></i>
+            <h2 class="h5 mt-3">No new notifications</h2>
+            <p class="text-muted">You are all caught up. Check back later for ticket updates, assignment alerts, and administrative messages.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-12">
+                <div class="notification-list card p-0">
+                    @foreach (var notification in notifications)
+                    {
+                        var itemClass = notification.is_read ? "notification-item read" : "notification-item unread";
+                        var iconClass = notification.type?.ToLowerInvariant() switch
+                        {
+                            "ticket_assigned" => "bi-ticket-detailed",
+                            "ticket_status" => "bi-arrow-repeat",
+                            "ticket_resolved" => "bi-check-circle",
+                            "ticket_comment" => "bi-chat-dots",
+                            "new_ticket" => "bi-plus-circle",
+                            "user_registration" => "bi-person-plus",
+                            "asset_assigned" => "bi-box-seam",
+                            "maintenance" => "bi-tools",
+                            "system" => "bi-info-circle",
+                            _ => "bi-bell"
+                        };
+                        var timestamp = notification.created_at is DateTime createdAt
+                            ? GetRelativeTime(createdAt)
+                            : "Unknown";
+                    <div class="list-group-item border-0 px-4 py-4 @itemClass">
+                        <div class="d-flex gap-3 align-items-start">
+                            <div class="notification-avatar bg-primary text-white">
+                                <i class="bi @iconClass"></i>
+                            </div>
+                            <div class="flex-fill">
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <h5 class="notification-title mb-1">@notification.title</h5>
+                                        <p class="notification-message mb-2">@notification.message</p>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-@(!notification.is_read ? "primary" : "secondary")">@(!notification.is_read ? "Unread" : "Read")</span>
+                                        <div class="text-muted small mt-2">@timestamp</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+                                    @if (!string.IsNullOrWhiteSpace(notification.link))
+                                    {
+                                        <a href="@notification.link" class="btn btn-sm btn-outline-primary">Open</a>
+                                    }
+                                    @if (!notification.is_read)
+                                    {
+                                        <form asp-action="MarkAsRead" method="post" class="d-inline">
+                                            <input type="hidden" name="id" value="@notification.id" />
+                                            <button type="submit" class="btn btn-sm btn-primary">Mark as read</button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@functions {
+    private static string GetRelativeTime(DateTime createdAt)
+    {
+        var delta = DateTime.UtcNow - createdAt.ToUniversalTime();
+        if (delta.TotalMinutes < 1)
+        {
+            return "Just now";
+        }
+
+        if (delta.TotalHours < 1)
+        {
+            return $"{(int)delta.TotalMinutes} minute{((int)delta.TotalMinutes == 1 ? string.Empty : "s")} ago";
+        }
+
+        if (delta.TotalDays < 1)
+        {
+            return $"{(int)delta.TotalHours} hour{((int)delta.TotalHours == 1 ? string.Empty : "s")} ago";
+        }
+
+        if (delta.TotalDays < 7)
+        {
+            return $"{(int)delta.TotalDays} day{((int)delta.TotalDays == 1 ? string.Empty : "s")} ago";
+        }
+
+        return createdAt.ToString("MMM d, yyyy");
+    }
+}

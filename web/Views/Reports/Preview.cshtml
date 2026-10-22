@@ -1,0 +1,55 @@
+@model ServiceHub_IT.Models.ReportFilterViewModel
+@{
+    ViewData["Title"] = "Report Preview";
+    var rows = ViewBag.Rows as List<Dictionary<string, object?>> ?? new List<Dictionary<string, object?>>();
+    var reportType = ViewBag.ReportType as string ?? "Report";
+}
+
+<div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1>@reportType Report</h1>
+        <p class="page-note">Preview the report before exporting or printing. Data is pulled from the selected report type and date range.</p>
+    </div>
+    <div class="topbar-pill">Preview</div>
+</div>
+
+<div class="content-panel mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <h5 class="mb-1">Report period</h5>
+            <p class="page-note mb-0">@ViewBag.StartDate?.ToString("yyyy-MM-dd") to @ViewBag.EndDate?.ToString("yyyy-MM-dd")</p>
+        </div>
+        <div class="btn-group">
+            <a asp-action="Export" asp-route-type="excel" asp-route-reportType="@reportType" asp-route-startDate="@ViewBag.StartDate" asp-route-endDate="@ViewBag.EndDate" class="btn btn-outline-success">Export Excel</a>
+            <a asp-action="Export" asp-route-type="csv" asp-route-reportType="@reportType" asp-route-startDate="@ViewBag.StartDate" asp-route-endDate="@ViewBag.EndDate" class="btn btn-outline-primary">Export CSV</a>
+            <a asp-action="Print" asp-route-reportType="@reportType" asp-route-startDate="@ViewBag.StartDate" asp-route-endDate="@ViewBag.EndDate" class="btn btn-outline-secondary">Print PDF</a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    @if (rows.Any())
+                    {
+                        foreach (var key in rows.First().Keys)
+                        {
+                            <th>@key</th>
+                        }
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in rows)
+                {
+                    <tr>
+                        @foreach (var key in row.Keys)
+                        {
+                            <td>@row[key]</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

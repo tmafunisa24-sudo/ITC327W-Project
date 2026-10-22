@@ -1,0 +1,214 @@
+@model ServiceHub_IT.DTOs.EmployeeDashboardViewModel
+@{
+    ViewData["Title"] = "Client Dashboard";
+    Layout = "_Layout";
+}
+
+@section Styles {
+    <style>
+        .client-location-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1050;
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.55);
+        }
+
+        .client-location-modal[hidden] {
+            display: none;
+        }
+
+        .client-location-dialog {
+            position: relative;
+            width: min(100%, 760px);
+            max-height: calc(100vh - 2rem);
+            overflow: auto;
+            padding: 1.5rem;
+            border-radius: 20px;
+            background: #ffffff;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+        }
+
+        .client-location-dialog h2 {
+            margin: 0 2.5rem 1rem 0;
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+
+        .client-location-image {
+            display: block;
+            width: 100%;
+            max-height: calc(100vh - 10rem);
+            object-fit: contain;
+            border-radius: 12px;
+        }
+
+        .client-location-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+
+        @@media (max-width: 576px) {
+            .client-location-dialog {
+                padding: 1.15rem;
+            }
+        }
+    </style>
+}
+
+<div class="dashboard-page container-fluid">
+    <div class="dashboard-header">
+        <div>
+            <span class="hero-badge"><i class="bi bi-person-badge"></i> Client</span>
+            <h1>Client Dashboard</h1>
+            <p>Click computer and accessories repair support, all in one place.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button type="button" class="btn btn-outline-primary" id="clientLocationButton" aria-haspopup="dialog" aria-controls="clientLocationModal">
+                <i class="bi bi-geo-alt me-2"></i>Location
+            </button>
+            <div class="topbar-pill"><i class="bi bi-clipboard-check me-2"></i>My workspace</div>
+        </div>
+    </div>
+
+    <div class="dashboard-stats">
+        <div class="summary-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@Model.ResolvedCount</div>
+                    <div class="stat-label">Resolved Tickets</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="stat-top">
+                <div>
+                    <div class="stat-value">@Model.PendingCount</div>
+                    <div class="stat-label">Pending Tickets</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-7">
+            <div class="table-card">
+                <div class="p-4">
+                        <h5 class="mb-3">My Repair Requests</h5>
+                    @if (Model.Tickets.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Assigned Technician</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var ticket in Model.Tickets)
+                                    {
+                                        <tr>
+                                            <td><a asp-controller="Tickets" asp-action="Details" asp-route-id="@ticket.id">@ticket.title</a></td>
+                                            <td>@(string.IsNullOrWhiteSpace(ticket.assigned_technician) ? (ticket.technician_id.HasValue ? "Assigned" : "Waiting") : ticket.assigned_technician)</td>
+                                            <td><span class="badge bg-secondary">@ticket.status</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state mt-3">
+                            <i class="bi bi-ticket-detailed"></i>
+                            <h3>No repair requests yet</h3>
+                            <p>Choose a device to submit your first repair request.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="table-card">
+                <div class="p-4">
+                    <h5 class="mb-3">Assigned Assets</h5>
+                    @if (Model.Assets.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var asset in Model.Assets)
+                            {
+                                <li class="list-group-item">@asset.asset_name (@asset.status)</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <i class="bi bi-hdd-stack"></i>
+                            <h3>No assets assigned</h3>
+                            <p>Once assets are assigned, they will appear here.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="client-location-modal" id="clientLocationModal" role="dialog" aria-modal="true" aria-labelledby="clientLocationHeading" hidden>
+    <div class="client-location-dialog">
+        <button type="button" class="btn btn-light icon-btn client-location-close" id="clientLocationClose" aria-label="Close location">
+            <i class="bi bi-x-lg"></i>
+        </button>
+        <h2 id="clientLocationHeading">Location</h2>
+        <img class="client-location-image" src="/images/Location.jpg" alt="ServiceHub IT location" />
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const locationButton = document.getElementById('clientLocationButton');
+            const locationModal = document.getElementById('clientLocationModal');
+            const locationClose = document.getElementById('clientLocationClose');
+
+            if (!locationButton || !locationModal || !locationClose) {
+                return;
+            }
+
+            function closeLocation() {
+                locationModal.hidden = true;
+                document.body.style.overflow = '';
+                locationButton.focus();
+            }
+
+            locationButton.addEventListener('click', function () {
+                locationModal.hidden = false;
+                document.body.style.overflow = 'hidden';
+                locationClose.focus();
+            });
+
+            locationClose.addEventListener('click', closeLocation);
+
+            locationModal.addEventListener('click', function (event) {
+                if (event.target === locationModal) {
+                    closeLocation();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && !locationModal.hidden) {
+                    closeLocation();
+                }
+            });
+        })();
+    </script>
+}

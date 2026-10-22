@@ -1,0 +1,253 @@
+@model ServiceHub_IT.Models.Ticket
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Ticket Details";
+    var isAdmin = User?.IsInRole("Admin") == true;
+    var isTechnician = User?.IsInRole("Technician") == true;
+    var isTechnicianOnly = isTechnician && !isAdmin;
+    var technicians = ViewBag.Technicians as IEnumerable<ServiceHub_IT.Models.Profile> ?? Enumerable.Empty<ServiceHub_IT.Models.Profile>();
+    var attachments = ViewBag.Attachments as IEnumerable<ServiceHub_IT.Models.TicketAttachment> ?? Enumerable.Empty<ServiceHub_IT.Models.TicketAttachment>();
+    var assignedTechnicianProfile = Model.technician_id.HasValue
+        ? technicians.FirstOrDefault(technician => technician.Id == Model.technician_id.Value)
+        : null;
+    var assignedTechnicianName = assignedTechnicianProfile is not null
+        ? (!string.IsNullOrWhiteSpace(assignedTechnicianProfile.FullName) ? assignedTechnicianProfile.FullName : assignedTechnicianProfile.Email)
+        : (string.IsNullOrWhiteSpace(Model.assigned_technician) ? "Unassigned" : Model.assigned_technician);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tickets.css" asp-append-version="true" />
+}
+
+<div class="ticket-page ticket-detail-page">
+    <div class="ticket-header">
+        <div class="ticket-title-area">
+            <span class="ticket-header-badge"><i class="bi bi-card-list"></i> Ticket Details</span>
+            <h1>Ticket Details</h1>
+            <p>Review ticket progress and key details.</p>
+        </div>
+        <a asp-controller="Tickets" asp-action="Index" class="btn btn-primary btn-create-ticket">Back to Tickets</a>
+    </div>
+
+    <div class="ticket-container">
+        @if (TempData["Success"] is string successMessage)
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+        @if (TempData["Error"] is string errorMessage)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+        @if (TempData["PaymentSuccess"] is string paymentSuccessMessage)
+        {
+            <div class="alert alert-success">@paymentSuccessMessage</div>
+        }
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="ticket-detail-card">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h2 class="ticket-title mb-2">@Model.title</h2>
+                            <p class="text-muted mb-1">Ticket #@Model.id</p>
+                            <p class="text-muted mb-0">@Model.description</p>
+                        </div>
+                        <span class="status-badge @(Model.status == "Open" ? "status-open" : Model.status == "Assigned" ? "status-assigned" : Model.status == "In Progress" ? "status-progress" : Model.status == "Resolved" ? "status-resolved" : "status-closed")">@Model.status</span>
+                    </div>
+
+                    <div class="ticket-details-grid">
+                        <div class="detail-block">
+                            <div class="detail-label">Requester</div>
+                            <div class="detail-value">@(string.IsNullOrWhiteSpace(Model.requester) ? "Not provided" : Model.requester)</div>
+                        </div>
+                        <div class="detail-block">
+                            <div class="detail-label">Assigned Technician</div>
+                            <div class="detail-value">@assignedTechnicianName</div>
+                        </div>
+                        <div class="detail-block">
+                            <div class="detail-label">Category</div>
+                            <div class="detail-value">@(string.IsNullOrWhiteSpace(Model.category) ? "General" : Model.category)</div>
+                        </div>
+                        <div class="detail-block">
+                            <div class="detail-label">Priority</div>
+                            <div><span class="priority-badge @(string.Equals(Model.priority, "High", StringComparison.OrdinalIgnoreCase) ? "priority-high" : string.Equals(Model.priority, "Critical", StringComparison.OrdinalIgnoreCase) ? "priority-critical" : string.Equals(Model.priority, "Low", StringComparison.OrdinalIgnoreCase) ? "priority-low" : "priority-medium")">@(string.IsNullOrWhiteSpace(Model.priority) ? "Medium" : Model.priority)</span></div>
+                        </div>
+                        <div class="detail-block">
+                            <div class="detail-label">Due Date</div>
+                            <div class="detail-value">@(Model.due_date?.ToString("dd MMM yyyy") ?? "Not set")</div>
+                        </div>
+                        <div class="detail-block">
+                            <div class="detail-label">Created</div>
+                            <div class="detail-value">@(Model.created_at?.ToString("dd MMM yyyy") ?? "—")</div>
+                        </div>
+                        <div class="detail-block">
+                            <div class="detail-label">Payment Method</div>
+                            <div class="detail-value">@(string.IsNullOrWhiteSpace(Model.payment_method) ? "Not selected" : Model.payment_method)</div>
+                        </div>
+                        <div class="detail-block">
+                            <div class="detail-label">Payment Status</div>
+                            <div class="detail-value">@(string.IsNullOrWhiteSpace(Model.payment_status) ? "Pending" : Model.payment_status)</div>
+                        </div>
+                        @if (isAdmin && string.Equals(Model.payment_status, "Pending", StringComparison.OrdinalIgnoreCase)
+                            && (string.Equals(Model.payment_method, "Card", StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(Model.payment_method, "Cash", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            <div class="detail-block">
+                                <form asp-controller="Tickets" asp-action="ConfirmPayment" asp-route-id="@Model.id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-assign">Confirm Payment</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="detail-label">Screenshot</div>
+                        @if (!string.IsNullOrWhiteSpace(Model.screenshot_url) || !string.IsNullOrWhiteSpace(Model.image_url))
+                        {
+                            var primaryImageUrl = !string.IsNullOrWhiteSpace(Model.screenshot_url) ? Model.screenshot_url : Model.image_url;
+                            <img src="@primaryImageUrl" alt="Ticket image" class="img-fluid rounded border" style="max-height:320px;" />
+                            <div class="mt-2"><a href="@primaryImageUrl" target="_blank" rel="noopener">View Screenshot</a></div>
+                        }
+                        else
+                        {
+                            <div class="text-muted">No screenshot uploaded.</div>
+                        }
+                    </div>
+                    @if (attachments.Any())
+                    {
+                        <div class="mt-4">
+                            <div class="detail-label">Attached Images</div>
+                            <div class="row g-3 mt-1">
+                                @foreach (var attachment in attachments)
+                                {
+                                    <div class="col-sm-6 col-md-4">
+                                        <a href="@attachment.FileUrl" target="_blank" rel="noopener" aria-label="View @attachment.FileName">
+                                            <img src="@attachment.FileUrl" alt="@attachment.FileName" class="img-fluid rounded border" style="max-height:180px; width:100%; object-fit:cover;" />
+                                        </a>
+                                        <div class="small text-muted mt-1 text-truncate">@attachment.FileName</div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    <div class="mt-4">
+                        <div class="detail-label">Comments</div>
+                        @if (string.IsNullOrWhiteSpace(Model.comments))
+                        {
+                            <div class="text-muted">No comments yet.</div>
+                        }
+                        else
+                        {
+                            <div class="border rounded p-3" style="white-space: pre-line;">@Model.comments</div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="ticket-progress-card mb-3">
+                    <div class="card-body p-4">
+                        <h5 class="mb-3">Ticket Progress</h5>
+                        <div class="progress" role="progressbar" aria-label="Ticket progress">
+                            <div class="progress-bar" style="width: @GetProgress(Model.status)%"></div>
+                        </div>
+                        <div class="mt-3 text-muted small">Status flow: In Progress → Resolved → Closed</div>
+                    </div>
+                </div>
+
+                @if (!isAdmin && !isTechnician)
+                {
+                    <div class="ticket-action-card mb-3">
+                        <div class="card-body p-4">
+                            <h5 class="mb-3">Add Comment</h5>
+                            <form asp-controller="Tickets" asp-action="AddComment" asp-route-id="@Model.id" method="post">
+                                @Html.AntiForgeryToken()
+                                <textarea name="comment" class="form-control mb-3" rows="3" placeholder="Add a comment"></textarea>
+                                <button type="submit" class="btn btn-assign w-100">Save Comment</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+
+                <div class="ticket-actions">
+                    @if (isAdmin)
+                    {
+                        <div class="ticket-action-card mb-3">
+                            <div class="card-body p-4">
+                                <h5 class="mb-3">Update Due Date</h5>
+                                <form asp-controller="Tickets" asp-action="UpdateDueDate" asp-route-id="@Model.id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <div class="mb-3">
+                                        <label class="form-label" for="dueDate">Due Date</label>
+                                        <input type="date" id="dueDate" name="dueDate" class="form-control ticket-date-input" value="@(Model.due_date?.ToString("yyyy-MM-dd"))" />
+                                    </div>
+                                    <button type="submit" class="btn btn-assign w-100">Save Due Date</button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+
+                    @if (isTechnicianOnly)
+                    {
+                    <div class="ticket-action-card mb-3">
+                        <div class="card-body p-4">
+                            <h5 class="mb-3">Update Ticket</h5>
+                            <form asp-controller="Tickets" asp-action="UpdateStatus" asp-route-id="@Model.id" method="post">
+                                @Html.AntiForgeryToken()
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select name="Status" class="form-select ticket-select">
+                                        @if (!isTechnicianOnly)
+                                        {
+                                            <option value="Open" selected="@(string.Equals(Model.status, "Open", StringComparison.OrdinalIgnoreCase))">Open</option>
+                                            <option value="Assigned" selected="@(string.Equals(Model.status, "Assigned", StringComparison.OrdinalIgnoreCase))">Assigned</option>
+                                        }
+                                        <option value="In Progress" selected="@(string.Equals(Model.status, "In Progress", StringComparison.OrdinalIgnoreCase))">In Progress</option>
+                                        <option value="Resolved" selected="@(string.Equals(Model.status, "Resolved", StringComparison.OrdinalIgnoreCase))">Resolved</option>
+                                        <option value="Closed" selected="@(string.Equals(Model.status, "Closed", StringComparison.OrdinalIgnoreCase))">Closed</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Due Date</label>
+                                    <input type="date" name="DueDate" class="form-control ticket-date-input" value="@(Model.due_date?.ToString("yyyy-MM-dd"))" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Comment</label>
+                                    <textarea name="Comment" class="form-control" rows="3" placeholder="Add progress notes"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-assign w-100">Update Ticket</button>
+                            </form>
+                        </div>
+                    </div>
+                    }
+
+                    @if (!isAdmin && !isTechnician && string.Equals(Model.status, "Resolved", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <div class="ticket-action-card">
+                            <div class="card-body p-4">
+                                <form asp-controller="Tickets" asp-action="ConfirmClose" asp-route-id="@Model.id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-success w-100">Confirm Close</button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions{
+    string GetProgress(string status)
+    {
+        return status switch
+        {
+            "In Progress" => "33",
+            "Resolved" => "66",
+            "Closed" => "100",
+            _ => "0"
+        };
+    }
+}

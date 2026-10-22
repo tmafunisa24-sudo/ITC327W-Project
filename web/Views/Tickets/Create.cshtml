@@ -1,0 +1,212 @@
+@using System.Text.Json
+@model ServiceHub_IT.Models.CreateTicketViewModel
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "New Repair Request";
+    var services = ViewBag.ServiceCatalog as IEnumerable<ServiceHub_IT.Models.ServiceCatalogItem> ?? Enumerable.Empty<ServiceHub_IT.Models.ServiceCatalogItem>();
+    var catalogJson = JsonSerializer.Serialize(services);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/tickets.css" asp-append-version="true" />
+}
+
+<div class="ticket-page ticket-form-page">
+    <div class="ticket-header">
+        <div class="ticket-title-area">
+            <span class="ticket-header-badge"><i class="bi bi-tools"></i> Repair Request</span>
+            <h1>What device needs attention?</h1>
+            <p>Tell Click computer and accessories what needs repairing.</p>
+        </div>
+    </div>
+
+    <div class="ticket-container ticket-form-card">
+        <form asp-controller="Tickets" asp-action="Create" method="post" enctype="multipart/form-data" id="repairRequestForm">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+
+            <input asp-for="Title" type="hidden" />
+
+            <div class="mb-4">
+                <label asp-for="DeviceType" class="form-label">Choose a device</label>
+                <select asp-for="DeviceType" class="form-select" id="deviceType">
+                    <option value="">Select device</option>
+                    <option>Cellphone</option>
+                    <option>Laptop</option>
+                    <option>Printer</option>
+                    <option>TV</option>
+                </select>
+                <span asp-validation-for="DeviceType" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="ProblemCategory" class="form-label">What type of problem?</label>
+                <select asp-for="ProblemCategory" class="form-select" id="problemCategory">
+                    <option value="">Select problem type</option>
+                    <option>Software</option>
+                    <option>Hardware</option>
+                </select>
+                <span asp-validation-for="ProblemCategory" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="ServiceCatalogId" class="form-label">Select repair problem</label>
+                <select asp-for="ServiceCatalogId" class="form-select" id="serviceCatalogId">
+                    <option value="">Select a device and problem type first</option>
+                </select>
+                <input asp-for="ProblemType" type="hidden" id="problemType" />
+                <span asp-validation-for="ProblemType" class="text-danger small"></span>
+                <span asp-validation-for="ServiceCatalogId" class="text-danger small"></span>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-8">
+                    <label asp-for="Description" class="form-label">Describe the problem</label>
+                    <textarea asp-for="Description" class="form-control" rows="5" placeholder="Tell us what is happening"></textarea>
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Priority" class="form-label">Priority</label>
+                    <select asp-for="Priority" class="form-select">
+                        <option>Low</option>
+                        <option selected>Medium</option>
+                        <option>High</option>
+                        <option>Critical</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="Images" class="form-label">Screenshot Upload (Optional)</label>
+                <input asp-for="Images" class="form-control" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple />
+                <div id="imageUploadMessage" class="text-danger small mt-1" role="alert"></div>
+                <div id="imagePreviewList" class="row g-2 mt-1" aria-live="polite"></div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-3">
+                <button type="submit" class="btn btn-primary btn-assign">Submit Repair Request</button>
+                <a asp-controller="Employee" asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="application/json" id="serviceCatalogData">@Html.Raw(catalogJson)</script>
+    <script>
+        const repairRequestForm = document.getElementById('repairRequestForm');
+        const deviceType = document.getElementById('deviceType');
+        const problemCategory = document.getElementById('problemCategory');
+        const serviceCatalogId = document.getElementById('serviceCatalogId');
+        const problemType = document.getElementById('problemType');
+        const title = document.getElementById('Title');
+        const catalogElement = document.getElementById('serviceCatalogData');
+        const catalog = JSON.parse(catalogElement?.textContent || '[]');
+        const imageInput = document.getElementById('Images');
+        const imagePreviewList = document.getElementById('imagePreviewList');
+        const imageUploadMessage = document.getElementById('imageUploadMessage');
+        const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        const maxImageSize = 5 * 1024 * 1024;
+        let selectedImages = [];
+        console.log('CATALOG DATA:', catalog);
+        console.log('CATALOG COUNT:', catalog?.length);
+
+        function normalize(value) {
+            return String(value ?? '').trim().toLowerCase();
+        }
+
+        function renderImagePreviews() {
+            imagePreviewList.replaceChildren();
+            selectedImages.forEach((file, index) => {
+                const column = document.createElement('div');
+                column.className = 'col-sm-6 col-lg-4';
+                const image = document.createElement('img');
+                image.className = 'img-fluid rounded border';
+                image.alt = file.name;
+                image.src = URL.createObjectURL(file);
+                image.style.maxHeight = '120px';
+                const label = document.createElement('div');
+                label.className = 'small text-muted mt-1 text-truncate';
+                label.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'btn btn-sm btn-outline-secondary mt-1';
+                remove.textContent = 'Remove';
+                remove.setAttribute('aria-label', `Remove ${file.name}`);
+                remove.addEventListener('click', () => {
+                    selectedImages.splice(index, 1);
+                    const transfer = new DataTransfer();
+                    selectedImages.forEach(selected => transfer.items.add(selected));
+                    imageInput.files = transfer.files;
+                    renderImagePreviews();
+                });
+                column.append(image, label, remove);
+                imagePreviewList.appendChild(column);
+            });
+        }
+
+        imageInput.addEventListener('change', () => {
+            imageUploadMessage.textContent = '';
+            selectedImages = Array.from(imageInput.files);
+            const invalid = selectedImages.find(file => !allowedImageTypes.includes(file.type) || file.size <= 0 || file.size > maxImageSize);
+            if (invalid) {
+                imageUploadMessage.textContent = 'Images must be JPG, PNG, WEBP, or GIF files no larger than 5 MB each.';
+                selectedImages = [];
+                imageInput.value = '';
+            }
+            renderImagePreviews();
+        });
+
+        function filterServices() {
+            const selectedDevice = deviceType.value;
+            const selectedCategory = problemCategory.value;
+            console.log('SELECTED DEVICE:', selectedDevice);
+            console.log('SELECTED CATEGORY:', selectedCategory);
+            console.log('FILTER INPUT:', { device: selectedDevice, category: selectedCategory });
+
+            const filteredProblems = catalog.filter(service =>
+                service.isActive !== false
+                && normalize(service.deviceType || service.device_type) === normalize(selectedDevice)
+                && normalize(service.problemCategory || service.problem_category) === normalize(selectedCategory));
+            console.log('FILTERED RESULTS:', filteredProblems);
+
+            serviceCatalogId.replaceChildren();
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = filteredProblems.length > 0
+                ? 'Select a repair problem'
+                : 'Select a device and problem type first';
+            serviceCatalogId.appendChild(placeholder);
+
+            filteredProblems.forEach(service => {
+                const option = document.createElement('option');
+                option.value = service.id;
+                option.textContent = service.problemType || service.problem_type || '';
+                serviceCatalogId.appendChild(option);
+            });
+
+            problemType.value = '';
+            title.value = '';
+            console.log('Repair problem element:', serviceCatalogId);
+        }
+
+        deviceType.addEventListener('change', filterServices);
+        problemCategory.addEventListener('change', filterServices);
+        serviceCatalogId.addEventListener('change', () => {
+            const selected = serviceCatalogId.selectedOptions[0];
+            problemType.value = selected && !selected.hidden ? selected.textContent.trim() : '';
+            title.value = problemType.value ? `${deviceType.value} repair: ${problemType.value}` : '';
+        });
+        repairRequestForm.addEventListener('submit', () => {
+            console.log('SUBMIT CLICKED');
+            console.log('FORM SUBMIT');
+            console.log({
+                device_type: deviceType.value,
+                problem_category: problemCategory.value,
+                problem_type: problemType.value,
+                service_catalog_id: serviceCatalogId.value
+            });
+        });
+        filterServices();
+    </script>
+}

@@ -1,0 +1,281 @@
+@model ServiceHub_IT.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+    Layout = "_LoginLayout";
+}
+
+<style>
+    body.login-page:has(.login-form-card) {
+        background:
+            radial-gradient(circle at 12% 18%, rgba(96, 165, 250, 0.2), transparent 24%),
+            radial-gradient(circle at 88% 82%, rgba(37, 99, 235, 0.18), transparent 28%),
+            linear-gradient(135deg, #06162d 0%, #0b2548 52%, #123566 100%);
+    }
+
+    body.login-page:has(.login-form-card)::after {
+        content: '';
+        position: absolute;
+        width: 24rem;
+        height: 24rem;
+        right: -10rem;
+        top: 8%;
+        border: 1px solid rgba(147, 197, 253, 0.1);
+        border-radius: 50%;
+        box-shadow: 0 0 0 3rem rgba(147, 197, 253, 0.025), 0 0 0 7rem rgba(147, 197, 253, 0.018);
+        pointer-events: none;
+    }
+
+    body.login-page:has(.login-form-card) .login-shell {
+        max-width: 460px;
+        padding: 1rem;
+    }
+
+    body.login-page:has(.login-form-card) .login-hero {
+        margin-bottom: 1.25rem;
+    }
+
+    body.login-page:has(.login-form-card) .login-brand-mark {
+        width: 132px;
+        height: 116px;
+        margin-bottom: 0.9rem;
+        border-radius: 1.5rem;
+    }
+
+    body.login-page:has(.login-form-card) .brand-logo {
+        filter: none;
+    }
+
+    body.login-page:has(.login-form-card) .login-subtitle {
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 600;
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+
+    body.login-page:has(.login-form-card) .login-title {
+        margin-top: 0.55rem;
+        font-size: clamp(2.25rem, 8vw, 3.25rem);
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 700;
+    }
+
+    body.login-page:has(.login-form-card) .auth-card {
+        min-height: 0;
+        padding: 2rem;
+        border-radius: 1.25rem;
+        box-shadow: 0 24px 60px rgba(2, 12, 30, 0.28), 0 4px 14px rgba(2, 12, 30, 0.12);
+    }
+
+    body.login-page:has(.login-form-card) .login-form .form-control {
+        min-height: 3.15rem;
+        border-radius: 0.75rem;
+        font-size: 0.98rem;
+    }
+
+    body.login-page:has(.login-form-card) .login-form .form-label {
+        font-size: 0.86rem;
+        letter-spacing: 0.01em;
+    }
+
+    body.login-page:has(.login-form-card) .login-submit-button {
+        min-height: 3.2rem;
+        border-radius: 0.75rem;
+        font-size: 1rem;
+    }
+
+    body.login-page:has(.login-form-card) .login-extra-links {
+        font-size: 0.88rem;
+    }
+
+    body.login-page:has(.login-form-card) .alert,
+    body.login-page:has(.login-form-card) .text-danger {
+        border-radius: 0.65rem;
+    }
+
+    .login-form {
+        animation: login-form-entrance 600ms ease-out both;
+    }
+
+    .login-form .form-control {
+        transition: border-color 250ms ease, box-shadow 250ms ease;
+    }
+
+    .login-form .login-submit-button {
+        transition: transform 225ms ease, box-shadow 225ms ease;
+    }
+
+    .login-form .login-submit-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+    }
+
+    .login-form .login-submit-button.is-pressed {
+        transform: scale(0.97);
+        transition-duration: 100ms;
+    }
+
+    .password-input-wrap {
+        position: relative;
+    }
+
+    .password-input-wrap .form-control {
+        padding-right: 2.9rem;
+    }
+
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 0.65rem;
+        transform: translateY(-50%);
+        z-index: 5;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border: 1px solid rgba(108, 117, 125, 0.15);
+        background: rgba(255, 255, 255, 0.8);
+        color: #475569;
+        border-radius: 0.5rem;
+        padding: 0;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .password-toggle:hover,
+    .password-toggle:focus-visible {
+        color: #0d6efd;
+        background: rgba(13, 110, 253, 0.08);
+        outline: none;
+    }
+
+    .password-toggle i {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+
+    .login-submit-spinner {
+        width: 0.9rem;
+        height: 0.9rem;
+        margin-right: 0.4rem;
+        vertical-align: -0.1rem;
+    }
+
+    @@keyframes login-form-entrance {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<div class="card fade-in auth-card login-form-card">
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="alert alert-success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    <form asp-action="Login" method="post" class="login-form">
+        <input asp-for="ReturnUrl" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="mb-3 form-field">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" class="form-control" placeholder="name@company.com" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3 form-field">
+            <label asp-for="Password" class="form-label"></label>
+            <div class="password-input-wrap">
+                <input asp-for="Password" class="form-control" placeholder="Enter password" />
+                <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
+            </div>
+            <span asp-validation-for="Password" class="text-danger"></span>
+        </div>
+
+        <div class="form-check mb-4">
+            <input asp-for="RememberMe" class="form-check-input" />
+            <label asp-for="RememberMe" class="form-check-label">Remember me</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 login-submit-button">
+            <span class="login-submit-label">Sign in</span>
+        </button>
+    </form>
+
+    <div class="mt-4 text-center login-extra-links">
+        <a asp-action="ForgotPassword" class="text-decoration-none d-block">Forgot password?</a>
+        <div class="mt-2">
+            <span>Don't have an account?</span>
+            <a asp-action="SignUp" class="text-decoration-none">Create one</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        document.querySelectorAll('[data-password-toggle]').forEach((toggle) => {
+            const input = toggle.closest('.password-input-wrap')?.querySelector('input');
+            if (!input) {
+                return;
+            }
+
+            const icon = toggle.querySelector('i');
+            const setVisible = (isVisible) => {
+                input.type = isVisible ? 'text' : 'password';
+                toggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+                toggle.setAttribute('aria-pressed', String(isVisible));
+
+                if (icon) {
+                    icon.classList.toggle('bi-eye', !isVisible);
+                    icon.classList.toggle('bi-eye-slash', isVisible);
+                }
+            };
+
+            toggle.addEventListener('click', (event) => {
+                event.preventDefault();
+                const nextVisible = input.type !== 'text';
+                setVisible(nextVisible);
+                input.focus();
+                const end = input.value.length;
+                input.setSelectionRange(end, end);
+            });
+        });
+
+        const form = document.querySelector('.login-form');
+        const submitButton = document.querySelector('.login-submit-button');
+        const submitLabel = document.querySelector('.login-submit-label');
+        submitButton?.addEventListener('click', () => {
+            submitButton.classList.add('is-pressed');
+            window.setTimeout(() => submitButton.classList.remove('is-pressed'), 100);
+        });
+
+        form?.addEventListener('submit', () => {
+            if (!submitButton || submitButton.disabled) {
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitLabel.textContent = 'Signing in...';
+            const spinner = document.createElement('span');
+            spinner.className = 'spinner-border spinner-border-sm login-submit-spinner';
+            spinner.setAttribute('role', 'status');
+            spinner.setAttribute('aria-label', 'Signing in');
+            submitLabel.before(spinner);
+        });
+    })();
+</script>
