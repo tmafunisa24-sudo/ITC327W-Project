@@ -13,9 +13,6 @@ This application includes:
 - Machine learning ticket prediction model
 - Responsive Bootstrap 5 UI and standard MVC layout
 
-## Team contributions
-
-The ten-member contribution plan and GitHub workflow are documented in [TEAM_CONTRIBUTIONS.md](TEAM_CONTRIBUTIONS.md).
 
 ## Prerequisites
 
