@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServiceHub_IT.DTOs;
 using ServiceHub_IT.Models;
@@ -228,8 +228,7 @@ public class AdminController : Controller
                 return RedirectToAction(nameof(Users));
             }
 
-            profile.Role = NormalizeRole(role);
-            profile.Status = NormalizeStatus(status);
+            profile.Role = NormalizeRole(role);            profile.Status = NormalizeStatus(status);
             if (string.IsNullOrWhiteSpace(profile.Role))
             {
                 TempData["ErrorMessage"] = "The selected role is not supported.";
