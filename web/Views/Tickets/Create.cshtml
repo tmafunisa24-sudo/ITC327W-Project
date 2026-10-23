@@ -190,23 +190,52 @@
             console.log('Repair problem element:', serviceCatalogId);
         }
 
-        deviceType.addEventListener('change', filterServices);
-        problemCategory.addEventListener('change', filterServices);
-        serviceCatalogId.addEventListener('change', () => {
-            const selected = serviceCatalogId.selectedOptions[0];
-            problemType.value = selected && !selected.hidden ? selected.textContent.trim() : '';
-            title.value = problemType.value ? `${deviceType.value} repair: ${problemType.value}` : '';
-        });
-        repairRequestForm.addEventListener('submit', () => {
-            console.log('SUBMIT CLICKED');
-            console.log('FORM SUBMIT');
-            console.log({
-                device_type: deviceType.value,
-                problem_category: problemCategory.value,
-                problem_type: problemType.value,
-                service_catalog_id: serviceCatalogId.value
-            });
-        });
+deviceType.addEventListener('change', () => {
+    deviceType.setCustomValidity('');
+    serviceCatalogId.setCustomValidity('');
+    filterServices();
+});
+
+problemCategory.addEventListener('change', () => {
+    problemCategory.setCustomValidity('');
+    serviceCatalogId.setCustomValidity('');
+    filterServices();
+});
+
+serviceCatalogId.addEventListener('change', () => {
+    serviceCatalogId.setCustomValidity('');
+    const selected = serviceCatalogId.selectedOptions[0];
+    problemType.value = selected && !selected.hidden ? selected.textContent.trim() : '';
+    title.value = problemType.value ? `${deviceType.value} repair: ${problemType.value}` : '';
+});
+
+repairRequestForm.addEventListener('submit', (event) => {
+    const missingSelection =
+        !deviceType.value ||
+        !problemCategory.value ||
+        !serviceCatalogId.value ||
+        !problemType.value;
+
+    if (missingSelection) {
+        event.preventDefault();
+
+        const firstMissing = !deviceType.value
+            ? deviceType
+            : !problemCategory.value
+                ? problemCategory
+                : serviceCatalogId;
+
+        firstMissing.focus();
+        firstMissing.setCustomValidity('Please select a device, problem category, and repair problem.');
+        firstMissing.reportValidity();
+
+        return;
+    }
+
+    deviceType.setCustomValidity('');
+    problemCategory.setCustomValidity('');
+    serviceCatalogId.setCustomValidity('');
+});
         filterServices();
     </script>
 }

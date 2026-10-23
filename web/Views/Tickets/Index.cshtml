@@ -125,9 +125,10 @@
                                     : statusKey == "closed" ? "status-closed"
                                     : "status-closed";
                             <tr>
-                                <td><span class="ticket-id">@(ticket.ticket_number ?? ticket.id)</span></td>
-                                <td>@(ticket.device_type ?? "Not specified")</td>
-                                <td><div class="ticket-title">@(ticket.problem_type ?? ticket.title)</div></td>
+                                <td>@ticket.id</td>
+<td><span class="ticket-id">@(ticket.ticket_number ?? ticket.id)</span></td>
+<td>@(ticket.device_type ?? "Not specified")</td>
+<td><div class="ticket-title">@(ticket.problem_type ?? ticket.title)</div></td>
                                 @if (isAdmin)
                                 {
                                     <td>
