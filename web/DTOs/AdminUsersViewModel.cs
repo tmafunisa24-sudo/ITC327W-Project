@@ -4,7 +4,7 @@ namespace ServiceHub_IT.DTOs;
 
 public class AdminUsersViewModel
 {
-    public int TotalUsers { get; set; }
+   public int TotalUsers { get; set; }
     public int PendingApprovals { get; set; }
     public int Employees { get; set; }
     public int Technicians { get; set; }
