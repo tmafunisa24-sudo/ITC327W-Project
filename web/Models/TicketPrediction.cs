@@ -1,3 +1,4 @@
+// Summary: Represents predicted ticket information used by the application.
 namespace ServiceHub_IT.Models;
 
 public class TicketPrediction

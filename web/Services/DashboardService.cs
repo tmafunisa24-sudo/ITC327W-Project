@@ -1,3 +1,4 @@
+// Summary: Retrieves and prepares dashboard metrics and information for display.
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using ServiceHub_IT.DTOs;
