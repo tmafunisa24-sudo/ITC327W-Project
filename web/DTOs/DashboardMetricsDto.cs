@@ -1,3 +1,4 @@
+// Summary: Transfers metric values used in dashboard summaries.
 namespace ServiceHub_IT.DTOs;
 
 public class DashboardMetricsDto
