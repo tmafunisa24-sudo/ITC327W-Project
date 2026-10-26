@@ -1,10 +1,14 @@
 @model ServiceHub_IT.Models.LoginViewModel
+@* Sign in page. Posts to AuthController.Login; success and error banners come from TempData. *@
 @{
     ViewData["Title"] = "Sign in";
+    // Uses the login layout (no main navigation bar).
     Layout = "_LoginLayout";
 }
 
+@* Page-specific styles. The :has(.login-form-card) selector scopes them to this page only. *@
 <style>
+    /* Page background: dark blue gradient with soft light spots. */
     body.login-page:has(.login-form-card) {
         background:
             radial-gradient(circle at 12% 18%, rgba(96, 165, 250, 0.2), transparent 24%),
@@ -12,6 +16,7 @@
             linear-gradient(135deg, #06162d 0%, #0b2548 52%, #123566 100%);
     }
 
+    /* Decorative ring in the top-right corner. */
     body.login-page:has(.login-form-card)::after {
         content: '';
         position: absolute;
@@ -25,6 +30,7 @@
         pointer-events: none;
     }
 
+    /* Sizing and spacing of the logo, title and card. */
     body.login-page:has(.login-form-card) .login-shell {
         max-width: 460px;
         padding: 1rem;
@@ -70,6 +76,7 @@
         box-shadow: 0 24px 60px rgba(2, 12, 30, 0.28), 0 4px 14px rgba(2, 12, 30, 0.12);
     }
 
+    /* Larger, rounded inputs and submit button. */
     body.login-page:has(.login-form-card) .login-form .form-control {
         min-height: 3.15rem;
         border-radius: 0.75rem;
@@ -96,6 +103,7 @@
         border-radius: 0.65rem;
     }
 
+    /* Fade-in animation, plus hover and pressed effects for the form and submit button. */
     .login-form {
         animation: login-form-entrance 600ms ease-out both;
     }
@@ -117,6 +125,7 @@
         transition-duration: 100ms;
     }
 
+    /* Show/hide password button, positioned inside the password field. */
     .password-input-wrap {
         position: relative;
     }
@@ -157,6 +166,7 @@
         line-height: 1;
     }
 
+    /* Small spinner shown on the button while signing in. */
     .login-submit-spinner {
         width: 0.9rem;
         height: 0.9rem;
@@ -164,6 +174,7 @@
         vertical-align: -0.1rem;
     }
 
+    /* '@@' is how Razor writes a literal '@' in CSS. Slides the form up while fading it in. */
     @@keyframes login-form-entrance {
         from {
             opacity: 0;
@@ -176,7 +187,9 @@
     }
 </style>
 
+@* Login card. *@
 <div class="card fade-in auth-card login-form-card">
+    @* Feedback banners: success (e.g. after sign up or password reset) and error (set by AuthController). *@
     @if (TempData["SuccessMessage"] is string success)
     {
         <div class="alert alert-success">@success</div>
@@ -186,10 +199,14 @@
         <div class="alert alert-danger">@error</div>
     }
 
+    @* Posts to AuthController.Login (POST); the form tag helper adds the anti-forgery token automatically. *@
     <form asp-action="Login" method="post" class="login-form">
+        @* Hidden field that carries the return URL through the form post. *@
         <input asp-for="ReturnUrl" type="hidden" />
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
+        @* Email field. *@
+        @* Password field with show/hide button. *@
         <div class="mb-3 form-field">
             <label asp-for="Email" class="form-label"></label>
             <input asp-for="Email" class="form-control" placeholder="name@company.com" />
@@ -200,6 +217,7 @@
             <label asp-for="Password" class="form-label"></label>
             <div class="password-input-wrap">
                 <input asp-for="Password" class="form-control" placeholder="Enter password" />
+                @* Eye button toggles password visibility (script below). type="button" stops it submitting the form. *@
                 <button type="button" class="password-toggle" data-password-toggle aria-label="Show password" aria-pressed="false">
                     <i class="bi bi-eye" aria-hidden="true"></i>
                 </button>
@@ -207,16 +225,19 @@
             <span asp-validation-for="Password" class="text-danger"></span>
         </div>
 
+        @* 'Remember me' keeps the user signed in for 30 days instead of 7. *@
         <div class="form-check mb-4">
             <input asp-for="RememberMe" class="form-check-input" />
             <label asp-for="RememberMe" class="form-check-label">Remember me</label>
         </div>
 
+        @* Submit button; the script below disables it and shows a spinner to prevent double submits. *@
         <button type="submit" class="btn btn-primary w-100 login-submit-button">
             <span class="login-submit-label">Sign in</span>
         </button>
     </form>
 
+    @* Links to password recovery and registration. *@
     <div class="mt-4 text-center login-extra-links">
         <a asp-action="ForgotPassword" class="text-decoration-none d-block">Forgot password?</a>
         <div class="mt-2">
@@ -226,8 +247,10 @@
     </div>
 </div>
 
+@* Client-side behaviour: password show/hide and submit button feedback. *@
 <script>
     (() => {
+        // Show/hide password: for each eye button, find the password input in the same wrapper.
         document.querySelectorAll('[data-password-toggle]').forEach((toggle) => {
             const input = toggle.closest('.password-input-wrap')?.querySelector('input');
             if (!input) {
@@ -235,6 +258,7 @@
             }
 
             const icon = toggle.querySelector('i');
+            // Switches the input between password and text, and updates the icon and accessibility labels.
             const setVisible = (isVisible) => {
                 input.type = isVisible ? 'text' : 'password';
                 toggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
@@ -246,6 +270,7 @@
                 }
             };
 
+            // On click, flip visibility, then return focus to the field with the cursor at the end.
             toggle.addEventListener('click', (event) => {
                 event.preventDefault();
                 const nextVisible = input.type !== 'text';
@@ -256,6 +281,7 @@
             });
         });
 
+        // Submit button feedback: a brief pressed effect, then a loading state on submit.
         const form = document.querySelector('.login-form');
         const submitButton = document.querySelector('.login-submit-button');
         const submitLabel = document.querySelector('.login-submit-label');
@@ -264,6 +290,7 @@
             window.setTimeout(() => submitButton.classList.remove('is-pressed'), 100);
         });
 
+        // Disable the button and show a spinner so the form cannot be submitted twice.
         form?.addEventListener('submit', () => {
             if (!submitButton || submitButton.disabled) {
                 return;
