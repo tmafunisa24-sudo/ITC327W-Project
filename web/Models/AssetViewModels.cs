@@ -1,3 +1,4 @@
+// Defines form and search view models for creating, editing, and filtering assets.
 using System.ComponentModel.DataAnnotations;
 
 namespace ServiceHub_IT.Models;

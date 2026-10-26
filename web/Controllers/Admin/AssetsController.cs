@@ -1,3 +1,4 @@
+// Handles administrator asset management, assignments, and asset document uploads.
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
