@@ -1,105 +1,95 @@
-# ServiceHub IT
+# Click Computer and Accessories - Client Support Platform
 
-ServiceHub IT is an ASP.NET Core 8 MVC application for IT help desk, asset management, ticketing, and reporting.
+This repository contains the Phase 3 development work for the Click Computer and Accessories client-support platform. The project builds on the requirements and architecture documented in earlier phases to provide a central place for clients to submit support requests and for support staff, technicians, and administrators to manage them.
 
-## Overview
+The application was previously called **ServiceHub IT**.
 
-This application includes:
-- Authentication and authorization with cookie-based login
-- Ticket, asset, department, maintenance, notification, and knowledge base management
-- Dashboard views and reporting features
-- Supabase integration for backend data access
-- PDF processing and document import support
-- Machine learning ticket prediction model
-- Responsive Bootstrap 5 UI and standard MVC layout
+## Project goals
 
+The platform aims to improve the current support process by making it easier to:
 
-## Prerequisites
+- Submit requests for computer and electronic devices.
+- Track request progress and communicate with support staff.
+- Assign requests to technicians and manage their workload.
+- Give administrators a central view of users, requests, and assignments.
 
-- .NET 8 SDK installed
-- A Supabase project with REST API access
-- Optional: Visual Studio 2022/2023, Visual Studio Code, or another C# editor
+## Scope and current implementation
 
-## Configuration
+The approved core workflow covers client sign-in, device and problem selection, request submission, status tracking, support communication, technician assignment, and administrator controls. Notifications, device or asset details, and file attachments are additional requirements where included in the final implementation.
 
-The application reads Supabase settings from configuration. Keep API keys out of source control; provide them with environment variables when running locally or through your deployment platform.
+The current working application is an **ASP.NET Core 8 MVC web app** in [`web/`](web/). It uses cookie-based sign-in and is configured to access Supabase services. The architecture documents also describe a Flutter mobile client and an ASP.NET API; those are part of the planned integrated solution, but the `mobile/`, `database/`, and `testing/` folders in this repository currently contain placeholders rather than implementation or test projects.
 
-The required configuration section is:
+## Technology
 
-```json
-"Supabase": {
-  "Url": "https://<your-supabase-project>.supabase.co",
-  "ApiKey": "<your-supabase-api-key>",
-  "RedirectUrl": "http://localhost:5080/Auth/Login"
-}
-```
+- ASP.NET Core 8 MVC and C#
+- Supabase for backend data services
+- Bootstrap-based web interface
+- Microsoft ML, Open XML, and PDF processing packages in the web project
 
-Set the values in PowerShell before starting the app:
+## Run the web application
+
+### Prerequisites
+
+- .NET 8 SDK
+- A development Supabase project configured for the application
+- PowerShell (for the examples below)
+
+Check that the SDK is available:
 
 ```powershell
-$env:Supabase__Url = "https://<your-supabase-project>.supabase.co"
-$env:Supabase__ApiKey = "<your-supabase-api-key>"
+dotnet --version
+```
+
+### Configure Supabase
+
+The web app reads the following settings from the `Supabase` configuration section:
+
+| Setting | Purpose |
+| --- | --- |
+| `Supabase__Url` | Supabase project URL |
+| `Supabase__ApiKey` | Supabase anon/publishable key |
+| `Supabase__RedirectUrl` | Local authentication redirect URL |
+
+For a temporary PowerShell session, enter the project URL and key locally:
+
+```powershell
+$env:Supabase__Url = Read-Host "Supabase project URL"
+$secureApiKey = Read-Host -AsSecureString "Supabase anon/publishable API key"
+$env:Supabase__ApiKey = [System.Net.NetworkCredential]::new("", $secureApiKey).Password
 $env:Supabase__RedirectUrl = "http://localhost:5080/Auth/Login"
 ```
 
-Use a Supabase anon/publishable key for client-facing application access; never use a service-role key in a client-facing app or commit secrets to source control.
+These environment variables are available to the app started from the same PowerShell session. For persistent local development, use .NET User Secrets. See [`web/README.md`](web/README.md) for the full configuration, Supabase setup, storage settings, and troubleshooting instructions.
 
-## Run locally
+Use a development project and an anon/publishable key. Never commit credentials or expose a Supabase service-role key to browser code.
 
-1. Open a terminal in the folder containing `ServiceHub IT.csproj`:
+### Restore, build, and run
 
-```powershell
-cd "path\to\ServiceHub-IT-main 1"
-```
-
-2. Restore packages and run the app on the documented local URL:
+Run these commands from the repository root:
 
 ```powershell
-dotnet restore
-dotnet run --urls http://localhost:5080
+dotnet restore ".\web\ServiceHub IT.csproj"
+dotnet build ".\web\ServiceHub IT.csproj"
+dotnet run --project ".\web\ServiceHub IT.csproj" --urls "http://localhost:5080"
 ```
 
-3. Open the browser at:
+Open [http://localhost:5080](http://localhost:5080). The default route opens the sign-in page. Configure the same redirect URL in the Supabase project's authentication settings.
 
-```text
-http://localhost:5080
-```
+There is no automated test project in the repository yet. When one is added, run it with `dotnet test <path-to-test-project.csproj>`.
 
-The default application route opens the login page.
+## Repository layout
 
-## Project structure
+- [`docs/`](docs/) - requirements, stakeholder and feasibility documents, risks, architecture, meeting records, and project evidence
+- [`web/`](web/) - ASP.NET Core MVC application
+- [`mobile/`](mobile/) - reserved for the mobile client
+- [`database/`](database/) - reserved for database-related project files
+- [`testing/`](testing/) - reserved for test projects and testing materials
+- [`project_management/`](project_management/) - project plans and progress trackers
 
-- `Controllers/` - MVC controllers for pages and API actions
-- `Models/` - domain models, view models, and configuration classes
-- `Views/` - Razor views and shared layouts
-- `Services/` - application services, Supabase integration, PDF processing, reporting, and ML
-- `Repositories/` - data access and repository base classes
-- `Interfaces/` - service and repository interfaces
-- `DTOs/` - data transfer objects
-- `Utilities/` - shared constants and helper code
-- `Middleware/` - request logging and pipeline middleware
-- `wwwroot/` - static assets, CSS, JS, and images
+## Project documents
 
-## Key packages
-
-- `Supabase` for Supabase REST API integration
-- `Microsoft.ML` for machine learning ticket prediction
-- `DocumentFormat.OpenXml` for working with Office documents
-- `UglyToad.PdfPig` for PDF parsing and processing
-
-## Notes
-
-- The app uses cookie authentication; HTTPS is recommended for deployed environments.
-- Authorization is enabled globally, so users must sign in to access protected routes.
-- If you change the local port or hostname, update `Supabase:RedirectUrl` accordingly.
-
-## Troubleshooting
-
-- If the app does not start, verify your .NET SDK installation with:
-
-```powershell
-dotnet --info
-```
-
-- If login or Supabase fails, confirm the `Supabase` section in `appsettings.json` is correct.
-- If you use a different development port, update the redirect URL in configuration.
+- [Documentation index](docs/README.md)
+- [System Requirements Specification](<docs/stakeholder/Click Computer and accessories SRS (Phase 1&2).pdf>)
+- [Phase 2 system architecture](<docs/architecture/Phase 2 -System Architecture.pdf>)
+- [Architecture overview](docs/architecture/architecture_overview.md)
+- [Risk register](docs/risks/risk_register.md)
