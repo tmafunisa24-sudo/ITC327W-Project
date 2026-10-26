@@ -1,3 +1,11 @@
+// ITC327W-Project - Departments Maintenance Module
+// File: Department.cs
+// Feature Branch: feature/keletso-tladi-departments-maintenance
+// Student: Keletso Tladi
+// Student Number: 221010874
+// Date: 2026-10-26
+// Module: Departments Maintenance - CRUD Operations
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServiceHub_IT.Models;
