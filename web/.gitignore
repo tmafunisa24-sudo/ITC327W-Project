@@ -6,3 +6,4 @@
 *.userosscache
 *.sln.docstates
 TestResults/
+appsettings.Development.json
