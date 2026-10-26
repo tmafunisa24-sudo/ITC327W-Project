@@ -72,7 +72,7 @@
                                     @if (!string.IsNullOrWhiteSpace(notification.link))
                                     {
                                         <a href="@notification.link" class="btn btn-sm btn-outline-primary">Open</a>
-                                    }
+                                     }
                                     @if (!notification.is_read)
                                     {
                                         <form asp-action="MarkAsRead" method="post" class="d-inline">

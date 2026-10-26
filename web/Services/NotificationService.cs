@@ -6,7 +6,7 @@ namespace ServiceHub_IT.Services;
 
 public class NotificationService
 {
-    private readonly ISupabaseService _supabaseService;
+     private readonly ISupabaseService _supabaseService;
     private readonly ILogger<NotificationService> _logger;
 
     public NotificationService(ISupabaseService supabaseService, ILogger<NotificationService> logger)
