@@ -6,6 +6,10 @@ using ServiceHub_IT.Services;
 
 namespace ServiceHub_IT.Controllers;
 
+/// <summary>
+/// Client dashboard: shows the client's own tickets and assigned assets, and the enquiry page.
+/// </summary>
+/// 
 [Authorize(Roles = "Client")]
 public class EmployeeController : Controller
 {
