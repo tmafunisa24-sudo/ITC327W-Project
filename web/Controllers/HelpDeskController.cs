@@ -8,6 +8,10 @@ using ServiceHub_IT.Services.Ai;
 
 namespace ServiceHub_IT.Controllers;
 
+/// <summary>
+/// Help desk tickets: list, create, view, accept and update status. Clients are redirected to the Tickets pages.
+/// </summary>
+/// 
 [Authorize]
 public class HelpDeskController : Controller
 {
