@@ -2,11 +2,11 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/models/service_catalog_item.dart';
-import '../lib/models/ticket.dart';
-import '../lib/services/service_catalog_service.dart';
-import '../lib/services/ticket_service.dart';
-import '../lib/viewmodels/create_ticket_viewmodel.dart';
+import 'package:clicks_computers_and_accessories_servicehub_flutter/models/service_catalog_item.dart';
+import 'package:clicks_computers_and_accessories_servicehub_flutter/models/ticket.dart';
+import 'package:clicks_computers_and_accessories_servicehub_flutter/services/service_catalog_service.dart';
+import 'package:clicks_computers_and_accessories_servicehub_flutter/services/ticket_service.dart';
+import 'package:clicks_computers_and_accessories_servicehub_flutter/viewmodels/create_ticket_viewmodel.dart';
 
 class FakeCatalogService implements ServiceCatalogService {
   @override
