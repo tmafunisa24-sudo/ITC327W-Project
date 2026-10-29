@@ -147,7 +147,7 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/branch2',
+                  path: '/tickets/new',
                   builder: (context, state) => const CreateTicketView(),
                 ),
               ],
@@ -156,7 +156,7 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/branch3',
+                  path: '/notifications',
                   builder: (context, state) => const NotificationsView(),
                 ),
               ],

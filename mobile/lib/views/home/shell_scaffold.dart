@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/design/app_colors.dart';
-import '../../core/design/app_radius.dart';
 
 /// Shell hosting the bottom navigation bar for authenticated screens.
 ///
