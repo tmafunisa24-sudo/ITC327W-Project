@@ -1,3 +1,4 @@
+// Summary: Defines the shared spacing scale used throughout the app's interface.
 // lib/core/design/app_spacing.dart
 
 import 'package:flutter/widgets.dart';

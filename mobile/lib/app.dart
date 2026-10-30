@@ -1,3 +1,4 @@
+// Summary: Configures the ServiceHub app, its providers, theme, and router.
 // lib/app.dart
 
 import 'package:flutter/material.dart';

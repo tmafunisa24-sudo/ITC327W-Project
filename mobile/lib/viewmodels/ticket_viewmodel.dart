@@ -1,3 +1,4 @@
+// Summary: Manages ticket data, loading state, and ticket updates for the UI.
 // lib/viewmodels/ticket_viewmodel.dart
 
 import 'package:flutter/foundation.dart';

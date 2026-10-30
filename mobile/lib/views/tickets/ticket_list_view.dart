@@ -1,3 +1,4 @@
+// Summary: Displays tickets with status summaries, filters, and ticket navigation.
 // lib/views/tickets/ticket_list_view.dart
 
 import 'package:flutter/material.dart';

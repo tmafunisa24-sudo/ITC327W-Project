@@ -1,3 +1,4 @@
+// Summary: Defines the data sent when updating a ticket's status and related details.
 // lib/models/dtos/update_ticket_status.dart
 
 class UpdateTicketStatus {

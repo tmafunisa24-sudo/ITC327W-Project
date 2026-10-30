@@ -1,3 +1,4 @@
+// Summary: Models a department and provides its JSON serialization and parsing.
 // lib/models/department.dart
 
 class Department {

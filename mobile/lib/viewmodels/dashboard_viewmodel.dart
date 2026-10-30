@@ -1,3 +1,4 @@
+// Summary: Manages dashboard data loading and refresh state for the UI.
 // lib/viewmodels/dashboard_viewmodel.dart
 
 import 'package:flutter/foundation.dart';

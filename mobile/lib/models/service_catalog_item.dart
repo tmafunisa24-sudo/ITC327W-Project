@@ -1,3 +1,4 @@
+// Summary: Models an available service-catalog item and maps it to and from JSON.
 // lib/models/service_catalog_item.dart
 
 class ServiceCatalogItem {

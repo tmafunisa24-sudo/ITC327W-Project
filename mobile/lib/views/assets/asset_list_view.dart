@@ -1,3 +1,4 @@
+// Summary: Displays the asset list with search, filters, and asset summary statistics.
 // lib/views/assets/asset_list_view.dart
 
 import 'package:flutter/material.dart';

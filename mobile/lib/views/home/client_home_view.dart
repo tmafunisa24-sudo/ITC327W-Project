@@ -1,3 +1,4 @@
+// Summary: Displays the client home dashboard and its quick navigation links.
 // lib/views/home/client_home_view.dart
 
 import 'package:flutter/material.dart';

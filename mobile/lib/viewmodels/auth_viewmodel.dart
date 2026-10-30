@@ -1,3 +1,4 @@
+// Summary: Manages authentication state, sign-in, sign-out, and the current user profile.
 // lib/viewmodels/auth_viewmodel.dart
 
 import 'package:flutter/foundation.dart';

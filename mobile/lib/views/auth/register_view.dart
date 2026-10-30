@@ -1,3 +1,4 @@
+// Summary: Displays the account-registration form and handles registration feedback.
 // lib/views/auth/register_view.dart
 
 

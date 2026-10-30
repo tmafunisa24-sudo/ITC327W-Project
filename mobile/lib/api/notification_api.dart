@@ -1,3 +1,4 @@
+// Summary: Calls notification endpoints to retrieve notifications and update read status.
 // lib/api/notification_api.dart
 
 import 'package:dio/dio.dart';

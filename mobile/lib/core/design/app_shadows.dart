@@ -1,3 +1,4 @@
+// Summary: Defines reusable shadow styles for cards and other interface surfaces.
 // lib/core/design/app_shadows.dart
 
 import 'package:flutter/material.dart';

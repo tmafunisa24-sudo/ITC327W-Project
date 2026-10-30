@@ -1,3 +1,4 @@
+// Summary: Manages service-catalog loading, ticket form state, and ticket submission.
 // lib/viewmodels/create_ticket_viewmodel.dart
 
 import 'dart:io';

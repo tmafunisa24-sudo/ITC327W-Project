@@ -1,3 +1,4 @@
+// Summary: Provides a branded page header with the app's shared visual styling.
 // lib/core/design/widgets/app_header.dart
 
 import 'package:flutter/material.dart';

@@ -1,3 +1,4 @@
+// Summary: Defines the API exception type used to report HTTP and server errors.
 // lib/core/network/api_exception.dart
 
 class ApiException implements Exception {

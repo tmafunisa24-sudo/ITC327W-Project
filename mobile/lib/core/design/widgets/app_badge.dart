@@ -1,3 +1,4 @@
+// Summary: Provides reusable status and category badges with configurable variants.
 // lib/core/design/widgets/app_badge.dart
 
 import 'package:flutter/material.dart';

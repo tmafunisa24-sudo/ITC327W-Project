@@ -1,3 +1,4 @@
+// Summary: Provides authentication and profile operations through the authentication API.
 // lib/services/auth_service.dart
 
 import '../api/auth_api.dart';

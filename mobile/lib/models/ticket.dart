@@ -1,3 +1,4 @@
+// Summary: Models a service ticket, including its details, status, and JSON conversion.
 // lib/models/ticket.dart
 
 class Ticket {

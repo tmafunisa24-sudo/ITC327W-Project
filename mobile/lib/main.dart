@@ -1,3 +1,4 @@
+// Summary: Initializes Flutter, configures shared services, and starts the ServiceHub app.
 // lib/main.dart
 
 import 'package:flutter/material.dart';

@@ -1,3 +1,4 @@
+// Summary: Displays the selected asset's details and related information.
 // lib/views/assets/asset_details_view.dart
 
 import 'package:flutter/material.dart';

@@ -1,3 +1,4 @@
+// Summary: Models a ticket attachment and its serialized data.
 // lib/models/ticket_attachment.dart
 
 class TicketAttachment {

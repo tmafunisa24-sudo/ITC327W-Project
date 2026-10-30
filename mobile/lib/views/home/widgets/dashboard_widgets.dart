@@ -1,3 +1,4 @@
+// Summary: Provides reusable dashboard sections, metric cards, technician details, and ticket lists.
 // lib/views/home/widgets/dashboard_widgets.dart
 
 import 'package:flutter/material.dart';

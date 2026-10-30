@@ -1,3 +1,4 @@
+// Summary: Provides methods for retrieving the asset list and individual asset details from the API.
 // lib/api/asset_api.dart
 
 import 'package:dio/dio.dart';

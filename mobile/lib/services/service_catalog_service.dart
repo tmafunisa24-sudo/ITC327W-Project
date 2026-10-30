@@ -1,3 +1,4 @@
+// Summary: Provides access to active service-catalog items through the API.
 // lib/services/service_catalog_service.dart
 
 import '../api/service_catalog_api.dart';

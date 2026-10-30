@@ -1,3 +1,4 @@
+// Summary: Displays the login form and manages user sign-in interactions.
 // lib/views/auth/login_view.dart
 
 import 'package:flutter/material.dart';

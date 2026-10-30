@@ -1,3 +1,4 @@
+// Summary: Calls the service-catalog endpoint and parses the active service items.
 // lib/api/service_catalog_api.dart
 
 import 'package:dio/dio.dart';

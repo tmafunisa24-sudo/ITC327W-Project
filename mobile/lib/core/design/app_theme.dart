@@ -1,3 +1,4 @@
+// Summary: Builds the shared Flutter theme from the app's colors and design tokens.
 // lib/core/design/app_theme.dart
 
 import 'package:flutter/material.dart';
