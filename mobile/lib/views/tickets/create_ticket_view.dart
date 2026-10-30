@@ -1,4 +1,3 @@
-// lib/views/tickets/create_ticket_view.dart
 
 import 'dart:io';
 
@@ -28,8 +27,12 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
       final vm = context.read<CreateTicketViewModel>();
+
       if (vm.allItems.isEmpty && !vm.isLoadingCatalog) {
         vm.loadCatalog();
       }
@@ -45,6 +48,16 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<CreateTicketViewModel>();
+
+    // Keep the text controller synchronised with the viewmodel.
+    if (_descriptionController.text != vm.description) {
+      _descriptionController.value = TextEditingValue(
+        text: vm.description,
+        selection: TextSelection.collapsed(
+          offset: vm.description.length,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: const AppTopBar(title: 'New Repair Request'),
@@ -72,7 +85,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Header ──
           const AppHeader(
             badge: 'Repair Request',
             badgeIcon: Icons.build_outlined,
@@ -82,7 +94,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // ── Device Type ──
           _FormLabel(text: 'Device Type', required: true),
           DropdownButtonFormField<String>(
             initialValue: vm.selectedDeviceType,
@@ -94,11 +105,10 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             items: vm.deviceTypes
                 .map((d) => DropdownMenuItem(value: d, child: Text(d)))
                 .toList(),
-            onChanged: vm.setDeviceType,
+            onChanged: vm.isSubmitting ? null : vm.setDeviceType,
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // ── Problem Category ──
           _FormLabel(text: 'Problem Category', required: true),
           DropdownButtonFormField<String>(
             initialValue: vm.selectedProblemCategory,
@@ -110,13 +120,12 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             items: vm.problemCategories
                 .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                 .toList(),
-            onChanged: vm.selectedDeviceType == null
+            onChanged: vm.selectedDeviceType == null || vm.isSubmitting
                 ? null
                 : vm.setProblemCategory,
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // ── Problem Type ──
           _FormLabel(text: 'Problem Type', required: true),
           DropdownButtonFormField<String>(
             initialValue: vm.selectedProblemType,
@@ -128,37 +137,38 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             items: vm.problemTypes
                 .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                 .toList(),
-            onChanged: vm.selectedProblemCategory == null
-                ? null
-                : vm.setProblemType,
+            onChanged:
+                vm.selectedProblemCategory == null || vm.isSubmitting
+                    ? null
+                    : vm.setProblemType,
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // ── Title (auto-filled) ──
-          _FormLabel(text: 'Title'),
+          _FormLabel(text: 'Title', required: true),
           TextFormField(
             key: ValueKey(vm.title),
             initialValue: vm.title,
+            enabled: !vm.isSubmitting,
+            maxLength: 120,
             decoration: const InputDecoration(
-              hintText: 'Auto-generated from selection',
+              hintText: 'Enter a short repair request title',
               prefixIcon: Icon(Icons.title_outlined),
+              counterText: '',
             ),
             onChanged: vm.setTitle,
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // ── Description ──
           _FormLabel(text: 'Description', required: true),
           AppTextField(
             controller: _descriptionController,
-            hint: 'Tell us what is happening...',
+            hint: 'Describe the problem, when it started, and what you have tried...',
             maxLines: 5,
             minLines: 5,
             onChanged: vm.setDescription,
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // ── Priority ──
           _FormLabel(text: 'Priority'),
           SegmentedButton<String>(
             segments: const [
@@ -168,15 +178,25 @@ class _CreateTicketViewState extends State<CreateTicketView> {
               ButtonSegment(value: 'Critical', label: Text('Critical')),
             ],
             selected: {vm.priority},
-            onSelectionChanged: (s) => vm.setPriority(s.first),
+            onSelectionChanged: vm.isSubmitting
+                ? null
+                : (s) => vm.setPriority(s.first),
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // ── Images ──
-          _FormLabel(text: 'Screenshots (optional, up to 5)'),
+          _FormLabel(text: 'Screenshots (optional)'),
+          Text(
+            '${vm.images.length} of 5 attachments added',
+            style: const TextStyle(
+              color: AppColors.textSubtle,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+
           if (vm.images.isEmpty)
             InkWell(
-              onTap: _pickImages,
+              onTap: vm.isSubmitting ? null : _pickImages,
               borderRadius: BorderRadius.circular(AppRadius.md),
               child: Container(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -185,7 +205,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
                     color: AppColors.primaryAlpha(0.18),
-                    style: BorderStyle.solid,
                   ),
                 ),
                 child: const Row(
@@ -227,24 +246,39 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                             width: 90,
                             height: 90,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 90,
+                                height: 90,
+                                color: AppColors.surfaceSoft,
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  color: AppColors.textSubtle,
+                                ),
+                              );
+                            },
                           ),
                         ),
                         Positioned(
                           top: 4,
                           right: 4,
-                          child: GestureDetector(
-                            onTap: () => vm.removeImageAt(i),
-                            child: Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: const BoxDecoration(
-                                color: AppColors.danger,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                size: 14,
-                                color: Colors.white,
-                              ),
+                          child: IconButton(
+                            tooltip: 'Remove attachment',
+                            constraints: const BoxConstraints.tightFor(
+                              width: 30,
+                              height: 30,
+                            ),
+                            padding: EdgeInsets.zero,
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.danger,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: vm.isSubmitting
+                                ? null
+                                : () => vm.removeImageAt(i),
+                            icon: const Icon(
+                              Icons.close,
+                              size: 16,
                             ),
                           ),
                         ),
@@ -252,18 +286,17 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                     );
                   }),
                 ),
-                const SizedBox(height: AppSpacing.xs),
                 if (vm.images.length < 5)
                   TextButton.icon(
-                    onPressed: _pickImages,
+                    onPressed: vm.isSubmitting ? null : _pickImages,
                     icon: const Icon(Icons.add),
                     label: const Text('Add more'),
                   ),
               ],
             ),
+
           const SizedBox(height: AppSpacing.lg),
 
-          // ── Error banner ──
           if (vm.submitError != null) ...[
             Container(
               padding: const EdgeInsets.all(AppSpacing.sm),
@@ -296,12 +329,12 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             const SizedBox(height: AppSpacing.md),
           ],
 
-          // ── Submit ──
           SizedBox(
             height: 52,
             child: ElevatedButton(
-              onPressed:
-                  vm.canSubmit && !vm.isSubmitting ? _submit : null,
+              onPressed: vm.canSubmit && !vm.isSubmitting
+                  ? _submit
+                  : null,
               child: vm.isSubmitting
                   ? const SizedBox(
                       width: 22,
@@ -316,16 +349,19 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
+
           SizedBox(
             height: 52,
             child: OutlinedButton(
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/tickets');
-                }
-              },
+              onPressed: vm.isSubmitting
+                  ? null
+                  : () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/tickets');
+                      }
+                    },
               child: const Text('Cancel'),
             ),
           ),
@@ -337,12 +373,40 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
   Future<void> _pickImages() async {
     final vm = context.read<CreateTicketViewModel>();
-    final picker = ImagePicker();
-    final picked = await picker.pickMultiImage(imageQuality: 85);
-    if (picked.isEmpty) return;
 
-    for (final x in picked) {
-      vm.addImage(File(x.path));
+    if (vm.isSubmitting) return;
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickMultiImage(imageQuality: 85);
+
+      if (!mounted || picked.isEmpty) return;
+
+      final remaining = 5 - vm.images.length;
+
+      if (remaining <= 0) return;
+
+      final accepted = picked.take(remaining).toList();
+
+      for (final image in accepted) {
+        vm.addImage(File(image.path));
+      }
+
+      if (picked.length > remaining && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only five screenshots can be attached.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to select images: $error'),
+        ),
+      );
     }
   }
 
@@ -362,6 +426,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
           backgroundColor: AppColors.success,
         ),
       );
+
       if (router.canPop()) {
         router.pop();
       } else {
@@ -371,13 +436,14 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   }
 }
 
-// ────────────────────────────────────────────────────────
-// Form label
-// ────────────────────────────────────────────────────────
 class _FormLabel extends StatelessWidget {
   final String text;
   final bool required;
-  const _FormLabel({required this.text, this.required = false});
+
+  const _FormLabel({
+    required this.text,
+    this.required = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -407,13 +473,14 @@ class _FormLabel extends StatelessWidget {
   }
 }
 
-// ────────────────────────────────────────────────────────
-// Error state
-// ────────────────────────────────────────────────────────
 class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-  const _ErrorState({required this.message, required this.onRetry});
+
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
