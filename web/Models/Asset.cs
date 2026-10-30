@@ -1,3 +1,4 @@
+// Defines the asset data model and its inventory, assignment, and media fields.
 namespace ServiceHub_IT.Models;
 
 public class Asset

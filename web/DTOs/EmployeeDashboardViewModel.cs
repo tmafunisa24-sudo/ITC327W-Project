@@ -1,3 +1,4 @@
+// Summary: Supplies dashboard data for the employee dashboard.
 using ServiceHub_IT.Models;
 
 namespace ServiceHub_IT.DTOs;

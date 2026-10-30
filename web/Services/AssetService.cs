@@ -1,3 +1,4 @@
+// Manages asset records and asset file storage through Supabase.
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;

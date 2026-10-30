@@ -1,3 +1,4 @@
+// Summary: Supplies dashboard data to the dashboard view.
 using ServiceHub_IT.Models;
 
 namespace ServiceHub_IT.DTOs;

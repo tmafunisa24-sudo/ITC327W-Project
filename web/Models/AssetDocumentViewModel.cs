@@ -1,3 +1,4 @@
+// Defines the view model used to upload a document for an asset.
 namespace ServiceHub_IT.Models;
 
 public class AssetDocumentUploadViewModel

@@ -1,3 +1,4 @@
+// Defines metadata for documents associated with an asset.
 namespace ServiceHub_IT.Models;
 
 public class AssetDocument
