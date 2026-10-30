@@ -1,14 +1,32 @@
+// ITC327W-Project - Mobile Service Catalogue Module
+// File: lib/models/department.dart
+// Feature Branch: feature/keletso-tladi-departments-maintenance
+// Student: Keletso Tladi
+// Student Number: 221010874
+// Date: 2026-10-30
+// Module: Departments - Department Model
+
 // lib/models/department.dart
 
+/// A company department as returned by the API.
+/// Only name is required; every other field may be missing.
 class Department {
+  /// Department id (null for a department that has not been saved yet).
   final String? id;
+  /// Display name of the department.
   final String name;
+  /// Optional short description.
   final String? description;
+  /// Number of employees in the department, if supplied by the API.
   final int? employeeCount;
+  /// Number of assets assigned to the department, if supplied by the API.
   final int? assetCount;
+  /// When the department was created.
   final DateTime? createdAt;
+  /// When the department was last changed.
   final DateTime? updatedAt;
 
+  /// Creates a department.
   const Department({
     this.id,
     required this.name,
@@ -19,6 +37,8 @@ class Department {
     this.updatedAt,
   });
 
+  /// Builds a department from the API JSON (snake_case keys).
+  /// Dates are parsed from ISO-8601 strings when present.
   factory Department.fromJson(Map<String, dynamic> json) {
     return Department(
       id: json['id'] as String?,
@@ -36,6 +56,7 @@ class Department {
     );
   }
 
+  /// Converts the department to JSON. The id is left out when it is null.
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
@@ -48,6 +69,7 @@ class Department {
     };
   }
 
+  /// Returns a copy with the given fields replaced.
   Department copyWith({
     String? id,
     String? name,
@@ -69,6 +91,7 @@ class Department {
   }
 
   @override
+  // Two departments are equal when every field matches.
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is Department &&
@@ -81,6 +104,7 @@ class Department {
           other.updatedAt == updatedAt;
 
   @override
+  // Kept consistent with operator == above.
   int get hashCode => Object.hash(
         id,
         name,
