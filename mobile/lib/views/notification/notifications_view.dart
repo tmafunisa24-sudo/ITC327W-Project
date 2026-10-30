@@ -1,4 +1,4 @@
-// Summary: Displays notifications and supports viewing and marking them as read.
+// Summary: Displays the user's notifications, supports refreshing and marking notifications as read, and provides loading, empty, and error states.
 // lib/views/notifications/notifications_view.dart
 
 import 'package:flutter/material.dart' hide Notification;
