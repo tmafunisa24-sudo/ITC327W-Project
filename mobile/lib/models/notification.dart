@@ -1,4 +1,5 @@
-// Summary: Defines the notification data model, including JSON conversion, copying, equality, and notification properties.
+// Summary: Defines the notification data model and its properties.
+// Summary: Models an individual notification, including read state and JSON conversion.
 // lib/models/notification.dart
 
 class Notification {

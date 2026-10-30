@@ -1,4 +1,5 @@
-// Summary: Manages notification data, unread counts, polling, loading states, and read-status updates for the application.
+// Summary: Manages notification data, loading states, unread counts, and read-status updates.
+// Summary: Manages notification data, unread counts, polling, and read-state updates.
 // lib/viewmodels/notification_viewmodel.dart
 
 import 'dart:async';
