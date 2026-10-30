@@ -14,6 +14,7 @@ import '../../viewmodels/auth_viewmodel.dart';
 import 'widgets/auth_widgets.dart';
 // ======================================================
 
+/// Lets a client request a password-reset email.
 class ForgotPasswordView extends StatefulWidget {
   const ForgotPasswordView({super.key});
 
