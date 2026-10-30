@@ -1,3 +1,9 @@
+// ITC327W-Project - Departments Maintenance Module
+// File: Department.cs
+// Feature Branch: feature/keletso-tladi-departments-maintenance
+// Student: Keletso Tladi
+// Student Number: 221010874
+
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;

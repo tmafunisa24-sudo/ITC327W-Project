@@ -1,3 +1,9 @@
+// ITC327W-Project - Departments Maintenance Module
+// File: Department.cs
+// Feature Branch: feature/keletso-tladi-departments-maintenance
+// Student: Keletso Tladi
+// Student Number: 221010874
+
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
