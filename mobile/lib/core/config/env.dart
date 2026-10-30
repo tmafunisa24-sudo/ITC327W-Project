@@ -1,3 +1,4 @@
+// Summary: Stores the backend base URL and environment configuration used by the app.
 // lib/core/config/env.dart
 
 class Env {

@@ -1,3 +1,4 @@
+// Summary: Defines the ServiceHub IT color palette used throughout the app.
 // lib/core/design/app_colors.dart
 
 import 'package:flutter/material.dart';

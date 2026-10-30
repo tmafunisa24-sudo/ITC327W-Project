@@ -1,3 +1,4 @@
+// Summary: Manages asset lists, selected asset details, and asset loading state.
 // lib/viewmodels/asset_viewmodel.dart
 
 import 'package:flutter/foundation.dart';

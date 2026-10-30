@@ -1,3 +1,4 @@
+// Summary: Models an available service-catalog item and maps it to and from JSON.
 // ITC327W-Project - Mobile Service Catalogue Module
 // File: lib/models/service_catalog_item.dart
 // Feature Branch: feature/keletso-tladi-departments-maintenance
@@ -5,9 +6,8 @@
 // Student Number: 221010874
 // Date: 2026-10-30
 // Module: Service Catalogue - Item Model
-
 // lib/models/service_catalog_item.dart
-
+main
 /// One entry in the service catalogue: a device type, a problem category
 /// and a specific problem type that a customer can request help with.
 /// Mirrors the JSON returned by GET /api/service-catalog.

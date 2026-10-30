@@ -1,3 +1,4 @@
+// Summary: Displays the forgot-password form and submits password-reset requests.
 // lib/views/auth/forgot_password_view.dart
 
 import 'package:flutter/material.dart';

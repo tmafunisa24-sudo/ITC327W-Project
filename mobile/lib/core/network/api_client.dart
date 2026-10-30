@@ -1,3 +1,4 @@
+// Summary: Configures the shared Dio client, request interceptors, and authentication cookies.
 // lib/core/network/api_client.dart
 
 import 'package:cookie_jar/cookie_jar.dart';

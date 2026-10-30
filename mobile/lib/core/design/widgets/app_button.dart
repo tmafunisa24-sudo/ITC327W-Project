@@ -1,3 +1,4 @@
+// Summary: Provides reusable buttons with shared variants, sizes, and styling.
 // lib/core/design/widgets/app_button.dart
 
 import 'package:flutter/material.dart';

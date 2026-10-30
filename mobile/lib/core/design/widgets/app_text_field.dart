@@ -1,3 +1,4 @@
+// Summary: Provides a consistently styled text input widget for app forms.
 // lib/core/design/widgets/app_text_field.dart
 
 import 'package:flutter/material.dart';

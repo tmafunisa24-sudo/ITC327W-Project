@@ -1,3 +1,4 @@
+// Summary: Defines the search and filter criteria used when querying assets.
 // lib/models/dtos/asset_search.dart
 
 class AssetSearch {

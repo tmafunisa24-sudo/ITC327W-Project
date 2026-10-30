@@ -1,3 +1,5 @@
+// Summary: Handles notification API requests, including retrieving notifications and updating read status.
+// Summary: Provides notification retrieval and read-state operations through the notification API.
 // lib/services/notification_service.dart
 
 import '../api/notification_api.dart';

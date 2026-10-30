@@ -1,3 +1,4 @@
+// Summary: Defines the ticket prediction data returned for an issue or service request.
 // lib/models/dtos/ticket_prediction.dart
 
 class TicketPrediction {

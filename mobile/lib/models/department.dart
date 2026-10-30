@@ -1,3 +1,4 @@
+// Summary: Models a department and provides its JSON serialization and parsing.
 // ITC327W-Project - Mobile Service Catalogue Module
 // File: lib/models/department.dart
 // Feature Branch: feature/keletso-tladi-departments-maintenance
@@ -5,9 +6,8 @@
 // Student Number: 221010874
 // Date: 2026-10-30
 // Module: Departments - Department Model
-
 // lib/models/department.dart
-
+main
 /// A company department as returned by the API.
 /// Only name is required; every other field may be missing.
 class Department {

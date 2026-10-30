@@ -1,3 +1,4 @@
+// Summary: Defines the app's route table, role-based home routing, and splash screen.
 // lib/routes/app_router.dart
 
 import 'package:flutter/material.dart';

@@ -1,3 +1,4 @@
+// Summary: Calls the service-catalog endpoint and parses the active service items.
 // ITC327W-Project - Mobile Service Catalogue Module
 // File: lib/api/service_catalog_api.dart
 // Feature Branch: feature/keletso-tladi-departments-maintenance
@@ -5,7 +6,7 @@
 // Student Number: 221010874
 // Date: 2026-10-30
 // Module: Service Catalogue - API Layer
-
+main
 // lib/api/service_catalog_api.dart
 
 import 'package:dio/dio.dart';

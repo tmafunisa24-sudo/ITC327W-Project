@@ -1,3 +1,4 @@
+// Summary: Calls authentication endpoints for login, registration, profile, and password reset.
 // lib/api/auth_api.dart
 
 import 'package:dio/dio.dart';

@@ -1,3 +1,4 @@
+// Summary: Models the authenticated user's profile and its JSON representation.
 // lib/models/profile.dart
 
 class Profile {

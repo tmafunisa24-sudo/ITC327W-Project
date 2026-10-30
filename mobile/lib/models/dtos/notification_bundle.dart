@@ -1,3 +1,4 @@
+// Summary: Defines the recent-notifications response bundle and its JSON parsing.
 // lib/models/dtos/notification_bundle.dart
 
 import '../../models/notification.dart';

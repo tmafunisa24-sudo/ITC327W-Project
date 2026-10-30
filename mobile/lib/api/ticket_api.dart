@@ -1,3 +1,4 @@
+// Summary: Calls ticket endpoints to list, retrieve, create, update, and manage tickets.
 // lib/api/ticket_api.dart
 
 import 'package:dio/dio.dart';

@@ -1,3 +1,4 @@
+// Summary: Defines the standard corner-radius values used by the app's components.
 // lib/core/design/app_radius.dart
 
 import 'package:flutter/widgets.dart';

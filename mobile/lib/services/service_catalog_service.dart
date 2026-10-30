@@ -1,3 +1,4 @@
+// Summary: Provides access to active service-catalog items through the API.
 // ITC327W-Project - Mobile Service Catalogue Module
 // File: lib/services/service_catalog_service.dart
 // Feature Branch: feature/keletso-tladi-departments-maintenance
@@ -5,7 +6,7 @@
 // Student Number: 221010874
 // Date: 2026-10-30
 // Module: Service Catalogue - Service Layer
-
+main
 // lib/services/service_catalog_service.dart
 
 import '../api/service_catalog_api.dart';

@@ -1,3 +1,4 @@
+// Summary: Provides shared visual widgets used by the authentication screens.
 // lib/views/auth/widgets/auth_widgets.dart
 //
 // Shared widgets used by all three auth screens:

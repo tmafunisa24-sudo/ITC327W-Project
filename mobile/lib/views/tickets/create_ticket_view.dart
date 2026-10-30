@@ -1,4 +1,8 @@
 
+// Summary: Provides the ticket creation form, including service selection and image attachments.
+// lib/views/tickets/create_ticket_view.dart
+main
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';

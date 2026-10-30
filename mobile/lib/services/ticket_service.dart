@@ -1,3 +1,4 @@
+// Summary: Provides the ticket business-service layer by delegating ticket operations to the API.
 // lib/services/ticket_service.dart
 
 import '../api/ticket_api.dart';

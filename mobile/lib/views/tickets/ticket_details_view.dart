@@ -1,3 +1,4 @@
+// Summary: Displays ticket information and provides ticket updates and payment actions.
 // lib/views/tickets/ticket_details_view.dart
 
 import 'package:flutter/material.dart';
