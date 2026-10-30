@@ -4,11 +4,18 @@ import 'package:flutter/foundation.dart';
 import '../models/profile.dart';
 import '../services/auth_service.dart';
 
+/// Where the user is in the sign-in process.
+/// [unknown] until [AuthViewModel.bootstrap] finishes at app startup.
+
 enum AuthState {
   unknown,
   authenticated,
   unauthenticated,
 }
+/// Holds sign-in state for the whole app and tells screens to rebuild
+/// (via [ChangeNotifier]) when it changes. Used by the router, login,
+/// register, forgot-password, profile and ticket-details screens, so
+/// avoid renaming its public members.
 
 class AuthViewModel extends ChangeNotifier {
   final AuthService _service;
@@ -30,7 +37,10 @@ class AuthViewModel extends ChangeNotifier {
   bool _registrationNeedsConfirmation = false;
   String? _pendingConfirmationEmail;
 
-  // --- Getters ---
+    // --- Getters ---
+  // Role helpers (isAdmin, isTechnician, isClient) read from the signed-in
+  // profile and are false when nobody is signed in.
+  
   AuthState get state => _state;
   Profile? get user => _user;
   String? get error => _error;
@@ -58,7 +68,8 @@ class AuthViewModel extends ChangeNotifier {
     final r = role.toLowerCase();
     return r == 'admin' || r == 'technician';
   }
-
+  /// Message shown when a blocked role tries to sign in.
+  
   static String _blockedMessage(String role) {
     return role.toLowerCase() == 'admin'
         ? 'Admin accounts can only access the web portal. Please use the browser version.'
@@ -89,6 +100,9 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+   /// Returns true on success. Blocked roles are signed out again and
+  /// [error] explains why. Any failure sets [error] and returns false.
+  
   Future<bool> login({
     required String email,
     required String password,
@@ -131,6 +145,8 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  /// Signs out on the server, then clears the local user.
+  
   Future<void> logout() async {
     await _service.logout();
     _user = null;
@@ -138,7 +154,10 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Register a new account.
+   /// Always returns false: registration does not sign the user in.
+  /// Check [registerError] for failure, or [registrationEmailSent] and
+  /// [registrationNeedsConfirmation] for success.
+  
   Future<bool> register({
     required String email,
     required String password,
@@ -202,6 +221,8 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+ /// Clears registration errors and the confirmation flags.
+ 
   void clearRegisterError() {
     _registerError = null;
     _registrationEmailSent = false;
@@ -210,18 +231,27 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+
+  /// Clears the forgot-password error and sent flag.
+
   void clearResetState() {
     _resetError = null;
     _resetSent = false;
     notifyListeners();
   }
 
+  /// Clears the login error.
+
   void clearError() {
     _error = null;
     notifyListeners();
   }
 
+    /// Saves profile changes. Returns true on success and replaces the cached
+  /// user; otherwise sets [updateError].
+  
   Future<bool> updateProfile({
+  
     String? fullName,
     String? phone,
     String? position,
