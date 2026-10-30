@@ -1,3 +1,4 @@
+// This controller manages user notifications, including displaying recent notifications, tracking unread counts, and marking notifications as read.
 using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;

@@ -1,3 +1,4 @@
+// This service handles creating notifications for individual users, email addresses, and specified user roles through Supabase.
 using System.Text.Json.Serialization;
 using ServiceHub_IT.Interfaces;
 using ServiceHub_IT.Models;
