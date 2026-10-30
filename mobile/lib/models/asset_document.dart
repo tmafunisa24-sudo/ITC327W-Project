@@ -1,5 +1,4 @@
-// Summary: Models a document associated with an asset and its JSON data.
-// lib/models/asset_document.dart
+//lib/models/asset_document.dart
 
 class AssetDocument {
   final String? id;
