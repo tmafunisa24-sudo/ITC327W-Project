@@ -5,7 +5,7 @@ namespace ServiceHub_IT.Models;
 
 public class Notification
 {
-    [JsonPropertyName("id")]
+     [JsonPropertyName("id")]
     public Guid id { get; set; }
 
     [JsonPropertyName("user_id")]

@@ -31,7 +31,7 @@ public class NotificationsController : Controller
 
         var notifications = (await _supabaseService.GetUserNotificationsAsync(profileId, cancellationToken)).ToList();
         return View(notifications);
-    }
+     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
