@@ -5,6 +5,11 @@ import '../core/network/api_client.dart';
 import '../core/network/api_exception.dart';
 import '../models/profile.dart';
 
+/// Sends authentication-related HTTP requests to the backend.
+///
+/// This class handles API endpoints and converts successful responses into
+/// [Profile] objects. UI state and user-facing loading messages belong in the
+/// view model, not here.
 class AuthApi {
   final Dio _dio;
   AuthApi([Dio? dio]) : _dio = dio ?? ApiClient.dio;
@@ -66,6 +71,7 @@ class AuthApi {
   ///
   /// Clears the server cookie and locally wipes the cookie jar.
   /// Never throws — logout should always succeed from the client's view.
+  /// Logs the current user out and clears the authentication session.
   Future<void> logout() async {
     try {
       await _dio.post('/api/auth/logout');
@@ -81,6 +87,7 @@ class AuthApi {
   /// Updates the current user's own profile.
   /// Only name, phone, and position are editable.
   /// Throws [ApiException] on failure.
+  /// Sends profile changes to the backend and returns the updated profile.
   Future<Profile> updateProfile({
     String? fullName,
     String? phone,
@@ -117,6 +124,7 @@ class AuthApi {
   /// Creates a new account. Returns a record:
   /// - `(email, requiresConfirmation, null)` on success
   /// - `(null, false, errorMessage)` on failure
+  /// Creates an account and returns registration/confirmation details.
   Future<(String?, bool, String?)> register({
     required String email,
     required String password,
@@ -159,6 +167,7 @@ class AuthApi {
   ///
   /// Sends a password-reset email via Supabase.
   /// Always returns success to avoid leaking whether the email exists.
+  /// Requests a password-reset email for the supplied email address.
   Future<void> forgotPassword({required String email}) async {
     final response = await _dio.post(
       '/api/auth/forgot-password',
