@@ -34,7 +34,17 @@ public class TicketService
         return tickets.Select(NormalizeTicket).ToList();
     }
 
-    public async Task<IReadOnlyList<Ticket>> GetTicketsAsync(string? requester = null, string? assignedTechnician = null, Guid? employeeId = null, Guid? technicianId = null, CancellationToken cancellationToken = default)
+    private HttpRequestMessage CreateRequest(HttpMethod method, string url, string? accessToken = null)
+    {
+        var request = new HttpRequestMessage(method, url);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(accessToken) ? _settings.ApiKey : accessToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return request;
+    }
+
+    public async Task<IReadOnlyList<Ticket>> GetTicketsAsync(string? requester = null, string? assignedTechnician = null, Guid? employeeId = null, Guid? technicianId = null, string? accessToken = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey))
         {
@@ -62,12 +72,10 @@ public class TicketService
             }
 
             var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?{string.Join('&', query)}";
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            using var response = await _httpClient.GetAsync(endpoint, cancellationToken);
+            
+            using var request = CreateRequest(HttpMethod.Get, endpoint, accessToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            
             if (!response.IsSuccessStatusCode)
             {
                 return Array.Empty<Ticket>();
@@ -88,16 +96,24 @@ public class TicketService
         }
     }
 
-    public async Task<Ticket?> GetTicketAsync(string id, CancellationToken cancellationToken = default)
+    public Task<Ticket?> GetTicketAsync(string id, CancellationToken cancellationToken = default)
     {
+        return GetTicketAsync(id, null, cancellationToken);
+    }
+
+    public async Task<Ticket?> GetTicketAsync(
+        string id,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey)) return null;
+
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            using var response = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{id}&select=*", cancellationToken);
+            var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{Uri.EscapeDataString(id)}&select=*";
+            using var request = CreateRequest(HttpMethod.Get, endpoint, accessToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            
             if (!response.IsSuccessStatusCode)
             {
                 return null;
@@ -114,9 +130,17 @@ public class TicketService
         }
     }
 
-    public async Task<Ticket?> GetTicketByIdAsync(string id, CancellationToken cancellationToken = default)
+    public Task<Ticket?> GetTicketByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        return await GetTicketAsync(id, cancellationToken);
+        return GetTicketByIdAsync(id, null, cancellationToken);
+    }
+
+    public Task<Ticket?> GetTicketByIdAsync(
+        string id,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        return GetTicketAsync(id, accessToken, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Ticket>> GetEmployeeTicketsAsync(string requester, CancellationToken cancellationToken = default)
@@ -124,17 +148,17 @@ public class TicketService
         return await GetTicketsAsync(requester: requester, cancellationToken: cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Ticket>> GetTechnicianTicketsAsync(Guid technicianId, string assignedTechnician, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Ticket>> GetTechnicianTicketsAsync(Guid technicianId, string assignedTechnician, string? accessToken = null, CancellationToken cancellationToken = default)
     {
         var tickets = new List<Ticket>();
         if (technicianId != Guid.Empty)
         {
-            tickets.AddRange(await GetTicketsAsync(technicianId: technicianId, cancellationToken: cancellationToken));
+            tickets.AddRange(await GetTicketsAsync(technicianId: technicianId, cancellationToken: cancellationToken, accessToken: accessToken));
         }
 
         if (!string.IsNullOrWhiteSpace(assignedTechnician))
         {
-            tickets.AddRange(await GetTicketsAsync(assignedTechnician: assignedTechnician, cancellationToken: cancellationToken));
+            tickets.AddRange(await GetTicketsAsync(assignedTechnician: assignedTechnician, cancellationToken: cancellationToken, accessToken: accessToken));
         }
 
         return tickets
@@ -167,23 +191,12 @@ public class TicketService
             var json = JsonSerializer.Serialize(ticket, serializerOptions);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var maskedApiKey = string.IsNullOrWhiteSpace(_settings.ApiKey)
-                ? "<missing>"
-                : _settings.ApiKey.Length <= 8
-                    ? "<masked>"
-                    : $"{_settings.ApiKey[..4]}...{_settings.ApiKey[^4..]}";
+            using var request = CreateRequest(HttpMethod.Post, endpoint, accessToken);
+            request.Headers.Add("Prefer", "return=representation");
+            request.Content = content;
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            _logger.LogInformation("TicketService.CreateTicketAsync using Supabase URL {Url} and table {Table}.", endpoint, "tickets");
-            _logger.LogInformation("TicketService.CreateTicketAsync request headers: apikey={ApiKeyMask}, HasAccessToken={HasAccessToken}, Content-Type=application/json, Prefer=return=representation.", maskedApiKey, !string.IsNullOrWhiteSpace(accessToken));
-            _logger.LogInformation("TicketService.CreateTicketAsync final request payload: {Payload}", json);
-
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {(string.IsNullOrWhiteSpace(accessToken) ? _settings.ApiKey : accessToken)}");
-            _httpClient.DefaultRequestHeaders.Add("Prefer", "return=representation");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            using var response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
             _logger.LogInformation("TicketService.CreateTicketAsync Supabase response status: {StatusCode}. Response body: {ResponseBody}", response.StatusCode, responseBody);
@@ -223,7 +236,10 @@ public class TicketService
         }
     }
 
-    public async Task<bool> UpdateTicketAsync(Ticket ticket, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateTicketAsync(Ticket ticket, CancellationToken cancellationToken = default) =>
+        UpdateTicketAsync(ticket, accessToken: null, cancellationToken);
+
+    public async Task<bool> UpdateTicketAsync(Ticket ticket, string? accessToken, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -238,16 +254,19 @@ public class TicketService
                 ["comments"] = ticket.comments,
                 ["payment_method"] = ticket.payment_method,
                 ["payment_status"] = ticket.payment_status,
-                ["updated_at"] = ticket.updated_at
+                ["updated_at"] = ticket.updated_at ?? DateTime.UtcNow
             };
-            var json = JsonSerializer.Serialize(payload);
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            
+            var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{Uri.EscapeDataString(ticket.id!)}";
+            
+            using var request = CreateRequest(HttpMethod.Patch, endpoint, GetServerWriteToken(accessToken));
+            request.Headers.Add("Prefer", "return=representation");
+            request.Content = content;
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            using var response = await _httpClient.PatchAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{ticket.id}", content, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -266,8 +285,11 @@ public class TicketService
 
         try
         {
-            ConfigureJsonHeaders(accessToken);
-            using var response = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/ticket_attachments?ticket_id=eq.{parsedTicketId}&select=*&order=created_at.asc", cancellationToken);
+            var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/ticket_attachments?ticket_id=eq.{parsedTicketId}&select=*&order=created_at.asc";
+            
+            using var request = CreateRequest(HttpMethod.Get, endpoint, accessToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Unable to load attachments for ticket {TicketId}. Status={StatusCode}", ticketId, response.StatusCode);
@@ -309,34 +331,21 @@ public class TicketService
                 CreatedAt = DateTime.UtcNow
             };
 
-            var content = new StringContent(JsonSerializer.Serialize(attachment), Encoding.UTF8, "application/json");
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetServerWriteToken(accessToken));
-            _httpClient.DefaultRequestHeaders.Add("Prefer", "return=minimal");
+            var json = JsonSerializer.Serialize(attachment);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
             var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/ticket_attachments";
-            _logger.LogInformation(
-                "Supabase attachment INSERT request. Method={Method}, Endpoint={Endpoint}, TicketId={TicketId}, FileUrl={FileUrl}, FileName={FileName}, UploadedBy={UploadedBy}, Payload={Payload}",
-                HttpMethod.Post,
-                endpoint,
-                ticketId,
-                attachment.FileUrl,
-                attachment.FileName,
-                attachment.UploadedBy,
-                JsonSerializer.Serialize(attachment));
-            using var response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
+            
+            using var request = CreateRequest(HttpMethod.Post, endpoint, GetServerWriteToken(accessToken));
+            request.Headers.Add("Prefer", "return=representation");
+            request.Content = content;
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogInformation("Supabase attachment INSERT response. Method={Method}, Endpoint={Endpoint}, Status={StatusCode}, TicketId={TicketId}, FileUrl={FileUrl}, Response={Response}", HttpMethod.Post, endpoint, response.StatusCode, ticketId, attachment.FileUrl, responseBody);
+            
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError(
-                    "Attachment metadata insert failed. TicketId={TicketId}, FileUrl={FileUrl}, FileName={FileName}, UploadedBy={UploadedBy}, Status={StatusCode}, Response={Response}",
-                    ticketId,
-                    attachment.FileUrl,
-                    attachment.FileName,
-                    attachment.UploadedBy,
-                    response.StatusCode,
-                    responseBody);
+                _logger.LogError("Attachment metadata insert failed. Status={StatusCode}, Response={Response}", response.StatusCode, responseBody);
                 throw new HttpRequestException("The ticket attachment metadata could not be saved.");
             }
 
@@ -359,14 +368,18 @@ public class TicketService
 
         try
         {
-            var content = new StringContent(JsonSerializer.Serialize(new { screenshot_url = screenshotUrl }), Encoding.UTF8, "application/json");
-            ConfigureJsonHeaders(GetServerWriteToken(accessToken));
-            _httpClient.DefaultRequestHeaders.Add("Prefer", "return=representation");
+            var json = JsonSerializer.Serialize(new { screenshot_url = screenshotUrl });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
             var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{Uri.EscapeDataString(ticketId)}";
-            _logger.LogInformation("Supabase screenshot PATCH request. Method={Method}, Endpoint={Endpoint}, TicketId={TicketId}, ScreenshotUrl={ScreenshotUrl}", HttpMethod.Patch, endpoint, ticketId, screenshotUrl);
-            using var response = await _httpClient.PatchAsync(endpoint, content, cancellationToken);
+            
+            using var request = CreateRequest(HttpMethod.Patch, endpoint, GetServerWriteToken(accessToken));
+            request.Headers.Add("Prefer", "return=representation");
+            request.Content = content;
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogInformation("Supabase screenshot PATCH response. Method={Method}, Endpoint={Endpoint}, Status={StatusCode}, TicketId={TicketId}, ScreenshotUrl={ScreenshotUrl}, Response={Response}", HttpMethod.Patch, endpoint, response.StatusCode, ticketId, screenshotUrl, responseBody);
+            
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError("Unable to save primary screenshot for ticket {TicketId}. Status={StatusCode}, Response={Response}", ticketId, response.StatusCode, responseBody);
@@ -374,33 +387,13 @@ public class TicketService
             }
 
             var updatedTickets = JsonSerializer.Deserialize<List<Ticket>>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (updatedTickets is not { Count: 1 })
-            {
-                _logger.LogError(
-                    "Supabase did not update exactly one ticket row. TicketId={TicketId}, ScreenshotUrl={ScreenshotUrl}, Status={StatusCode}, Response={Response}, RowsReturned={RowsReturned}",
-                    ticketId,
-                    screenshotUrl,
-                    response.StatusCode,
-                    responseBody,
-                    updatedTickets?.Count ?? 0);
-                return false;
-            }
-
-            return true;
+            return updatedTickets is { Count: 1 };
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Unable to save primary screenshot for ticket {TicketId}.", ticketId);
             return false;
         }
-    }
-
-    private void ConfigureJsonHeaders(string? accessToken = null)
-    {
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(accessToken) ? _settings.ApiKey : accessToken);
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
     private string GetServerWriteToken(string? accessToken)
@@ -417,14 +410,16 @@ public class TicketService
     {
         try
         {
-            var payload = JsonSerializer.Serialize(new { payment_status = "Paid" });
-            using var content = new StringContent(payload, Encoding.UTF8, "application/json");
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var json = JsonSerializer.Serialize(new { payment_status = "Paid" });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{Uri.EscapeDataString(ticketId)}";
 
-            using var response = await _httpClient.PatchAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{Uri.EscapeDataString(ticketId)}", content, cancellationToken);
+            using var request = CreateRequest(HttpMethod.Patch, endpoint, GetServerWriteToken(null));
+            request.Headers.Add("Prefer", "return=representation");
+            request.Content = content;
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -438,12 +433,11 @@ public class TicketService
     {
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            using var response = await _httpClient.DeleteAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{Uri.EscapeDataString(id)}", cancellationToken);
+            var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?id=eq.{Uri.EscapeDataString(id)}";
+            
+            using var request = CreateRequest(HttpMethod.Delete, endpoint);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -462,12 +456,9 @@ public class TicketService
 
     public async Task<string?> UploadScreenshotAsync(IFormFile file, string path, string? accessToken = null, CancellationToken cancellationToken = default)
     {
-        if (file is null || file.Length == 0)
-        {
-            return null;
-        }
+        if (file is null || file.Length == 0) return null;
 
-        if (!HasValidAccessToken(accessToken))
+        if (string.IsNullOrWhiteSpace(accessToken))
         {
             throw new InvalidOperationException("A valid Supabase access token is required to upload a screenshot.");
         }
@@ -486,21 +477,23 @@ public class TicketService
 
         try
         {
-            _logger.LogInformation("Starting screenshot upload. Endpoint={Endpoint}, Bucket={Bucket}, Path={Path}, FileName={FileName}, ContentType={ContentType}, SizeBytes={SizeBytes}, HasAccessToken={HasAccessToken}", endpoint, bucketName, path, Path.GetFileName(file.FileName), uploadContentType, file.Length, !string.IsNullOrWhiteSpace(accessToken));
             using var fileStream = file.OpenReadStream();
             using var content = new StreamContent(fileStream);
             content.Headers.ContentType = new MediaTypeHeaderValue(uploadContentType);
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
-            _httpClient.DefaultRequestHeaders.Add("x-upsert", "true");
+            
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            request.Headers.Clear();
+            request.Headers.Add("apikey", _settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.Add("x-upsert", "true");
+            request.Content = content;
 
-            using var response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogInformation("Screenshot upload response. StatusCode={StatusCode}, Bucket={Bucket}, Path={Path}, ResponseBody={ResponseBody}", (int)response.StatusCode, bucketName, path, responseBody);
+            
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Supabase screenshot upload failed. Bucket={Bucket}, Path={Path}, Status={StatusCode}, Response={ResponseBody}", bucketName, path, response.StatusCode, responseBody);
+                _logger.LogError("Supabase screenshot upload failed. Status={StatusCode}, Response={ResponseBody}", response.StatusCode, responseBody);
                 throw new HttpRequestException($"Supabase screenshot upload failed with HTTP {(int)response.StatusCode}: {responseBody}");
             }
 
@@ -508,40 +501,8 @@ public class TicketService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unable to upload screenshot to Supabase Storage. Endpoint={Endpoint}, Bucket={Bucket}, Path={Path}, FileName={FileName}, ContentType={ContentType}, SizeBytes={SizeBytes}, Exception={ExceptionMessage}, InnerException={InnerExceptionMessage}", endpoint, bucketName, path, Path.GetFileName(file.FileName), uploadContentType, file.Length, ex.Message, ex.InnerException?.Message);
+            _logger.LogError(ex, "Unable to upload screenshot to Supabase Storage.");
             throw;
-        }
-    }
-
-    private static bool HasValidAccessToken(string? accessToken)
-    {
-        if (string.IsNullOrWhiteSpace(accessToken))
-        {
-            return false;
-        }
-
-        var tokenParts = accessToken.Split('.');
-        if (tokenParts.Length != 3)
-        {
-            return false;
-        }
-
-        try
-        {
-            var payload = tokenParts[1].Replace('-', '+').Replace('_', '/');
-            payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
-            using var document = JsonDocument.Parse(Convert.FromBase64String(payload));
-            return document.RootElement.TryGetProperty("exp", out var expiration)
-                && expiration.TryGetInt64(out var expirationUnixTime)
-                && expirationUnixTime > DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-        catch (JsonException)
-        {
-            return false;
         }
     }
 }

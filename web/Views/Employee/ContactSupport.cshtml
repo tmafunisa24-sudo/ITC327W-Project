@@ -1,0 +1,19 @@
+@{
+    ViewData["Title"] = "Contact Support";
+    Layout = "_Layout";
+}
+
+<div class="dashboard-page container-fluid">
+    <div class="dashboard-header">
+        <div>
+            <span class="hero-badge"><i class="bi bi-life-preserver"></i> Support</span>
+            <h1>Contact Support</h1>
+            <p>Need help with your repair request? Contact Click computer and accessories support.</p>
+        </div>
+    </div>
+    <div class="table-card p-4">
+        <h5>Need help with your repair request?</h5>
+        <p class="text-muted">Submit a repair request and our support team will review it and assign a technician.</p>
+        <a asp-controller="Tickets" asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Submit Repair Request</a>
+    </div>
+</div>

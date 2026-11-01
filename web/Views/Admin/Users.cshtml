@@ -1,8 +1,3 @@
-﻿// ITC327W-Project - Departments Maintenance Module
-// File: Department.cs
-// Feature Branch: feature/keletso-tladi-departments-maintenance
-// Student: Keletso Tladi
-// Student Number: 221010874
 @model ServiceHub_IT.DTOs.AdminUsersViewModel
 @{
     ViewData["Title"] = "User Management";
@@ -34,7 +29,8 @@
 
     <div class="row g-4 mb-4">
         <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Total Users</h6><h2 class="mb-0">@Model.TotalUsers</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Pending</h6><h2 class="mb-0">@Model.PendingApprovals</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Pending Registration</h6><h2 class="mb-0">@Model.PendingRegistrationApprovals</h2></div></div>
+        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Pending Technician Approval</h6><h2 class="mb-0">@Model.PendingTechnicianApprovals</h2></div></div>
         <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Clients</h6><h2 class="mb-0">@Model.Employees</h2></div></div>
         <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Technicians & Admins</h6><h2 class="mb-0">@(Model.Technicians + Model.Administrators)</h2></div></div>
     </div>
@@ -63,6 +59,14 @@
                             </td>
                             <td>
                                 <span class="badge bg-light text-dark">@profile.Status</span>
+                                @if (string.Equals(profile.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">New Registration</span>
+                                }
+                                else if (string.Equals(profile.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span class="badge bg-info text-dark ms-1">Technician Approval</span>
+                                }
                             </td>
                             <td>@profile.CreatedAt.ToLocalTime().ToString("g")</td>
                             <td>

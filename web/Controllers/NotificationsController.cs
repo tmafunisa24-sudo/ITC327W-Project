@@ -1,4 +1,3 @@
-// This controller manages user notifications, including displaying recent notifications, tracking unread counts, and marking notifications as read.
 using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -29,9 +28,14 @@ public class NotificationsController : Controller
             return View(Array.Empty<Notification>());
         }
 
-        var notifications = (await _supabaseService.GetUserNotificationsAsync(profileId, cancellationToken)).ToList();
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        _logger.LogInformation(
+            "Fetching notifications for ProfileId: {ProfileId}, HasToken: {HasToken}",
+            profileId,
+            !string.IsNullOrWhiteSpace(accessToken));
+        var notifications = (await _supabaseService.GetUserNotificationsAsync(profileId, accessToken, cancellationToken)).ToList();
         return View(notifications);
-     }
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -48,7 +52,8 @@ public class NotificationsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var notification = (await _supabaseService.GetUserNotificationsAsync(profileId, cancellationToken))
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        var notification = (await _supabaseService.GetUserNotificationsAsync(profileId, accessToken, cancellationToken))
             .FirstOrDefault(x => x.id == id);
 
         if (notification is null || notification.user_id != profileId)
@@ -83,8 +88,9 @@ public class NotificationsController : Controller
             return Json(new { unreadCount = 0, notifications = Array.Empty<object>() });
         }
 
-        var recentNotifications = (await _supabaseService.GetNotificationsForUserAsync(profileId, 6, cancellationToken)).ToList();
-        var unreadCount = await _supabaseService.GetUnreadNotificationCountAsync(profileId, cancellationToken);
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        var recentNotifications = (await _supabaseService.GetNotificationsForUserAsync(profileId, 6, accessToken, cancellationToken)).ToList();
+        var unreadCount = await _supabaseService.GetUnreadNotificationCountAsync(profileId, accessToken, cancellationToken);
 
         var payload = recentNotifications.Select(notification => new
         {
@@ -120,10 +126,11 @@ public class NotificationsController : Controller
             isAuthenticated, email, name, nameIdentifier, profileIdClaim, subClaim, profileIdClaim2, profileIdClaim3, role);
 
         var resolvedProfileId = await GetCurrentProfileIdAsync(cancellationToken);
-        var unreadCount = resolvedProfileId == Guid.Empty ? 0 : await _supabaseService.GetUnreadNotificationCountAsync(resolvedProfileId, cancellationToken);
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        var unreadCount = resolvedProfileId == Guid.Empty ? 0 : await _supabaseService.GetUnreadNotificationCountAsync(resolvedProfileId, accessToken, cancellationToken);
         var unreadNotifications = resolvedProfileId == Guid.Empty
             ? Array.Empty<string>()
-            : (await _supabaseService.GetUnreadNotificationsForUserAsync(resolvedProfileId, cancellationToken))
+            : (await _supabaseService.GetUnreadNotificationsForUserAsync(resolvedProfileId, accessToken, cancellationToken))
                 .Where(n => !string.IsNullOrWhiteSpace(n.title))
                 .Select(n => n.title!).ToArray();
 
@@ -153,7 +160,8 @@ public class NotificationsController : Controller
             return Json(new { count = 0 });
         }
 
-        var count = await _supabaseService.GetUnreadNotificationCountAsync(profileId, cancellationToken);
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        var count = await _supabaseService.GetUnreadNotificationCountAsync(profileId, accessToken, cancellationToken);
         return Json(new { count });
     }
 
@@ -177,39 +185,14 @@ public class NotificationsController : Controller
     private async Task<Guid> GetCurrentProfileIdAsync(CancellationToken cancellationToken)
     {
         var user = User;
-        var email = user?.FindFirst(ClaimTypes.Email)?.Value ?? user?.Identity?.Name;
-        var name = user?.FindFirst(ClaimTypes.Name)?.Value;
-        var role = user?.FindFirst(ClaimTypes.Role)?.Value ?? "Unknown";
-        var nameIdentifier = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var profileIdClaim = user?.FindFirst("profile_id")?.Value;
-        var subClaim = user?.FindFirst("sub")?.Value;
-        var profileIdClaim2 = user?.FindFirst("profileId")?.Value;
-        var profileIdClaim3 = user?.FindFirst("ProfileId")?.Value;
-
-        _logger.LogInformation("NotificationsController.GetCurrentProfileIdAsync claims debug: Authenticated={Authenticated}, Email={Email}, Name={Name}, NameIdentifier={NameIdentifier}, profile_id={ProfileIdClaim}, sub={SubClaim}, profileId={ProfileIdClaim2}, ProfileId={ProfileIdClaim3}, Role={Role}",
-            user?.Identity?.IsAuthenticated == true, email, name, nameIdentifier, profileIdClaim, subClaim, profileIdClaim2, profileIdClaim3, role);
-
-        foreach (var claimType in new[] { "profile_id", ClaimTypes.NameIdentifier, "sub", "profileId", "ProfileId" })
+        
+        if (profileIdClaim != null && Guid.TryParse(profileIdClaim, out var profileId) && profileId != Guid.Empty)
         {
-            var claimValue = user?.FindFirst(claimType)?.Value;
-            if (!string.IsNullOrWhiteSpace(claimValue) && Guid.TryParse(claimValue, out var parsedProfileId))
-            {
-                _logger.LogInformation("NotificationsController resolved current profile ID from claim {ClaimType} for email {Email} and role {Role}: {ProfileId}", claimType, email, role, parsedProfileId);
-                return parsedProfileId;
-            }
+            return profileId;
         }
 
-        if (!string.IsNullOrWhiteSpace(email))
-        {
-            var profile = await _supabaseService.GetProfileByEmailAsync(email, cancellationToken);
-            if (profile is not null && profile.Id != Guid.Empty)
-            {
-                _logger.LogInformation("NotificationsController resolved current profile ID from email lookup for email {Email} and role {Role}: {ProfileId}", email, role, profile.Id);
-                return profile.Id;
-            }
-        }
-
-        _logger.LogWarning("NotificationsController could not resolve current profile ID for email {Email} and role {Role}", email, role);
+        // No fallback to email lookup - return Guid.Empty if profile_id claim is missing
         return Guid.Empty;
     }
 }

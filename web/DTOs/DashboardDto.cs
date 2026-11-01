@@ -1,4 +1,3 @@
-// Summary: Transfers dashboard data between application layers.
 namespace ServiceHub_IT.DTOs;
 
 public class DashboardDto

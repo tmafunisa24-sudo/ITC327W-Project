@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             const response = await fetch('/Notifications/Recent', {
+                cache: 'no-store',
                 credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json'
@@ -135,12 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (notificationDropdown) {
-        const dropdownParent = notificationDropdown.closest('.dropdown');
-        if (dropdownParent) {
-            dropdownParent.addEventListener('shown.bs.dropdown', function () {
-                fetchNotifications();
-            });
-        }
+        notificationDropdown.addEventListener('click', fetchNotifications);
     }
 
     if (markAllButton) {

@@ -1,5 +1,5 @@
-// Summary: Retrieves and prepares dashboard metrics and information for display.
 using System.Text.Json;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.Options;
 using ServiceHub_IT.DTOs;
 using ServiceHub_IT.Models;
@@ -19,7 +19,7 @@ public class DashboardService
         _logger = logger;
     }
 
-    public async Task<DashboardMetricsDto> GetMetricsAsync(CancellationToken cancellationToken = default)
+    public async Task<DashboardMetricsDto> GetMetricsAsync(string accessToken, CancellationToken cancellationToken = default)
     {
         var metrics = new DashboardMetricsDto();
 
@@ -30,11 +30,13 @@ public class DashboardService
 
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
+            using var assetsRequest = new HttpRequestMessage(HttpMethod.Get, $"{_settings.Url.TrimEnd('/')}/rest/v1/assets?select=*");
+            assetsRequest.Headers.Clear();
+            assetsRequest.Headers.Add("apikey", _settings.ApiKey);
+            assetsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            assetsRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            using var assetsResponse = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/assets?select=*", cancellationToken);
+            using var assetsResponse = await _httpClient.SendAsync(assetsRequest, cancellationToken);
             if (assetsResponse.IsSuccessStatusCode)
             {
                 var assets = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(await assetsResponse.Content.ReadAsStringAsync(cancellationToken));
@@ -46,7 +48,13 @@ public class DashboardService
                 }
             }
 
-            using var profilesResponse = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/profiles?select=*", cancellationToken);
+            using var profilesRequest = new HttpRequestMessage(HttpMethod.Get, $"{_settings.Url.TrimEnd('/')}/rest/v1/profiles?select=*");
+            profilesRequest.Headers.Clear();
+            profilesRequest.Headers.Add("apikey", _settings.ApiKey);
+            profilesRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            profilesRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            using var profilesResponse = await _httpClient.SendAsync(profilesRequest, cancellationToken);
             if (profilesResponse.IsSuccessStatusCode)
             {
                 var profiles = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(await profilesResponse.Content.ReadAsStringAsync(cancellationToken));
@@ -57,7 +65,13 @@ public class DashboardService
                 }
             }
 
-            using var ticketsResponse = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?select=*", cancellationToken);
+            using var ticketsRequest = new HttpRequestMessage(HttpMethod.Get, $"{_settings.Url.TrimEnd('/')}/rest/v1/tickets?select=*");
+            ticketsRequest.Headers.Clear();
+            ticketsRequest.Headers.Add("apikey", _settings.ApiKey);
+            ticketsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            ticketsRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            using var ticketsResponse = await _httpClient.SendAsync(ticketsRequest, cancellationToken);
             if (ticketsResponse.IsSuccessStatusCode)
             {
                 var tickets = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(await ticketsResponse.Content.ReadAsStringAsync(cancellationToken));
@@ -68,7 +82,13 @@ public class DashboardService
                 }
             }
 
-            using var maintenanceResponse = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/maintenance?select=*", cancellationToken);
+            using var maintenanceRequest = new HttpRequestMessage(HttpMethod.Get, $"{_settings.Url.TrimEnd('/')}/rest/v1/maintenance?select=*");
+            maintenanceRequest.Headers.Clear();
+            maintenanceRequest.Headers.Add("apikey", _settings.ApiKey);
+            maintenanceRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            maintenanceRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            using var maintenanceResponse = await _httpClient.SendAsync(maintenanceRequest, cancellationToken);
             if (maintenanceResponse.IsSuccessStatusCode)
             {
                 var maintenance = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(await maintenanceResponse.Content.ReadAsStringAsync(cancellationToken));

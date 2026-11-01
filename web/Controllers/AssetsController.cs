@@ -1,4 +1,3 @@
-// Provides the public-facing asset index page.
 using Microsoft.AspNetCore.Mvc;
 
 namespace ServiceHub_IT.Controllers;

@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ServiceHub_IT</RootNamespace>
+    <UserSecretsId>7fc91c4a-1be8-4f10-8d30-9cab9db76e4f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

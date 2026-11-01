@@ -36,6 +36,8 @@ public class CreateTicketViewModel
 public class UpdateTicketStatusViewModel
 {
     public string Status { get; set; } = "Open";
+    public Guid? AssignedTechnicianId { get; set; }
+    public bool AssignmentSubmitted { get; set; }
     public string? Comment { get; set; }
     public DateTime? DueDate { get; set; }
 }

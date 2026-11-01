@@ -27,22 +27,23 @@ public class TicketsController : Controller
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var email = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? string.Empty;
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
         IReadOnlyList<Ticket> tickets;
 
         if (User.IsInRole("Admin"))
         {
-            tickets = await _ticketService.GetTicketsAsync(cancellationToken: cancellationToken);
+            tickets = await _ticketService.GetTicketsAsync(cancellationToken: cancellationToken, accessToken: accessToken);
         }
         else if (User.IsInRole("Technician"))
         {
-            tickets = await _ticketService.GetTechnicianTicketsAsync(GetCurrentProfileId(), email, cancellationToken);
+            tickets = await _ticketService.GetTechnicianTicketsAsync(GetCurrentProfileId(), email, accessToken, cancellationToken);
         }
         else
         {
             var profileId = GetCurrentProfileId();
             tickets = profileId == Guid.Empty
                 ? Array.Empty<Ticket>()
-                : await _ticketService.GetTicketsAsync(employeeId: profileId, cancellationToken: cancellationToken);
+                : await _ticketService.GetTicketsAsync(employeeId: profileId, cancellationToken: cancellationToken, accessToken: accessToken);
         }
 
         var technicians = (await _supabaseService.GetTechniciansAsync(cancellationToken)).OrderBy(p => p.FullName).ThenBy(p => p.Email).ToList();
@@ -170,7 +171,6 @@ public class TicketsController : Controller
                 TempData.Remove("Success");
                 TempData["Error"] = "Unable to create the ticket right now.";
                 _logger.LogError("TicketsController.Create CreateTicketAsync returned false for ticket title {Title}.", ticket.title);
-                ViewBag.ServiceCatalog = catalog;
                 return View(model);
             }
 
@@ -220,7 +220,7 @@ public class TicketsController : Controller
             {
                 try
                 {
-                    assignedTechnician = await _supabaseService.GetProfileByIdAsync(technicianId, cancellationToken);
+                    assignedTechnician = await _supabaseService.GetProfileByIdAsync(technicianId, GetSupabaseAccessToken() ?? string.Empty, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -320,7 +320,6 @@ public class TicketsController : Controller
             TempData.Remove("Success");
             TempData["Error"] = "Unable to create the ticket right now.";
             _logger.LogError(ex, "TicketsController.Create exception while creating ticket for title {Title}.", ticket.title);
-            ViewBag.ServiceCatalog = catalog;
             return View(model);
         }
     }
@@ -328,7 +327,7 @@ public class TicketsController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(string id, CancellationToken cancellationToken)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -359,7 +358,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Client")]
     public async Task<IActionResult> Payment(string id, CancellationToken cancellationToken)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -378,7 +377,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Client")]
     public async Task<IActionResult> Payment(string id, PaymentMethodViewModel model, CancellationToken cancellationToken)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -401,7 +400,7 @@ public class TicketsController : Controller
         ticket.payment_status = "Pending";
         ticket.updated_at = DateTime.UtcNow;
 
-        if (!await _ticketService.UpdateTicketAsync(ticket, cancellationToken))
+        if (!await _ticketService.UpdateTicketAsync(ticket, GetSupabaseAccessToken(), cancellationToken))
         {
             ModelState.AddModelError(string.Empty, "Unable to save the payment method. Please try again.");
             return View(ticket);
@@ -416,7 +415,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ConfirmPayment(string id, CancellationToken cancellationToken)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -447,7 +446,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateDueDate(string id, DateTime? dueDate, bool returnToIndex = false, CancellationToken cancellationToken = default)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -455,7 +454,7 @@ public class TicketsController : Controller
 
         ticket.due_date = dueDate;
         ticket.updated_at = DateTime.UtcNow;
-        if (!await _ticketService.UpdateTicketAsync(ticket, cancellationToken))
+        if (!await _ticketService.UpdateTicketAsync(ticket, GetSupabaseAccessToken(), cancellationToken))
         {
             TempData["Error"] = "Unable to update the due date.";
             return RedirectToAction(returnToIndex ? nameof(Index) : nameof(Details), new { id });
@@ -470,7 +469,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Admin,Technician")]
     public async Task<IActionResult> UpdateStatus(string id, UpdateTicketStatusViewModel model, CancellationToken cancellationToken)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -489,7 +488,45 @@ public class TicketsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        if (!CanTransition(ticket.status, normalizedStatus))
+        Profile? newlyAssignedTechnician = null;
+        var assignmentChanged = false;
+        if (User.IsInRole("Admin") && model.AssignmentSubmitted)
+        {
+            if (!model.AssignedTechnicianId.HasValue)
+            {
+                assignmentChanged = ticket.technician_id.HasValue || !string.IsNullOrWhiteSpace(ticket.assigned_technician);
+                ticket.technician_id = null;
+                ticket.assigned_technician = null;
+            }
+            else
+            {
+                newlyAssignedTechnician = await _supabaseService.GetProfileByIdAsync(
+                    model.AssignedTechnicianId.Value,
+                    GetSupabaseAccessToken() ?? string.Empty,
+                    cancellationToken);
+                if (newlyAssignedTechnician is null || newlyAssignedTechnician.Id == Guid.Empty
+                    || !string.Equals(newlyAssignedTechnician.Role, "Technician", StringComparison.OrdinalIgnoreCase))
+                {
+                    TempData["Error"] = "The selected technician could not be found.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                assignmentChanged = ticket.technician_id != newlyAssignedTechnician.Id
+                    || !string.Equals(ticket.assigned_technician, newlyAssignedTechnician.Email, StringComparison.OrdinalIgnoreCase);
+                ticket.technician_id = newlyAssignedTechnician.Id;
+                ticket.assigned_technician = newlyAssignedTechnician.Email;
+            }
+        }
+
+        if (assignmentChanged && newlyAssignedTechnician is not null
+            && string.Equals(ticket.status, "Open", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(normalizedStatus, ticket.status, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedStatus = "Assigned";
+        }
+
+        var statusUnchanged = string.Equals(ticket.status, normalizedStatus, StringComparison.OrdinalIgnoreCase);
+        if (!CanTransition(ticket.status, normalizedStatus) && !(assignmentChanged && statusUnchanged))
         {
             TempData["Error"] = "Status updates must follow the required workflow order.";
             return RedirectToAction(nameof(Details), new { id });
@@ -510,7 +547,7 @@ public class TicketsController : Controller
                 : $"{ticket.comments}\n{actor}: {model.Comment}";
         }
 
-        var updated = await _ticketService.UpdateTicketAsync(ticket, cancellationToken);
+        var updated = await _ticketService.UpdateTicketAsync(ticket, GetSupabaseAccessToken(), cancellationToken);
         if (!updated)
         {
             TempData["Error"] = "Unable to update the ticket.";
@@ -519,6 +556,17 @@ public class TicketsController : Controller
 
         var ticketLink = Url.Action("Details", "Tickets", new { id = ticket.id }) ?? $"/Tickets/Details?id={ticket.id}";
         var statusMessage = $"Ticket '{ticket.title}' is now {ticket.status}.";
+        if (assignmentChanged && newlyAssignedTechnician is not null)
+        {
+            await _notificationService.CreateNotificationAsync(
+                newlyAssignedTechnician.Id,
+                "Ticket Assigned",
+                $"Ticket '{ticket.title}' has been assigned to you.",
+                "ticket_assigned",
+                ticketLink,
+                cancellationToken);
+        }
+
         await _notificationService.CreateNotificationForEmailAsync(
             ticket.requester,
             "Ticket status updated",
@@ -569,7 +617,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Admin,Technician,Client")]
     public async Task<IActionResult> AddComment(string id, string? comment, CancellationToken cancellationToken)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -599,7 +647,7 @@ public class TicketsController : Controller
             : $"{ticket.comments}\n{actor}: {commentText}";
         ticket.updated_at = DateTime.UtcNow;
 
-        if (!await _ticketService.UpdateTicketAsync(ticket, cancellationToken))
+        if (!await _ticketService.UpdateTicketAsync(ticket, GetSupabaseAccessToken(), cancellationToken))
         {
             TempData["Error"] = "Unable to save the comment.";
             return RedirectToAction(nameof(Details), new { id });
@@ -631,7 +679,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Client")]
     public async Task<IActionResult> ConfirmClose(string id, CancellationToken cancellationToken)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id, cancellationToken);
+        var ticket = await _ticketService.GetTicketByIdAsync(id, GetSupabaseAccessToken(), cancellationToken);
         if (ticket is null)
         {
             return NotFound();
@@ -650,7 +698,7 @@ public class TicketsController : Controller
 
         ticket.status = "Closed";
         ticket.updated_at = DateTime.UtcNow;
-        var updated = await _ticketService.UpdateTicketAsync(ticket, cancellationToken);
+        var updated = await _ticketService.UpdateTicketAsync(ticket, GetSupabaseAccessToken(), cancellationToken);
         if (!updated)
         {
             TempData["Error"] = "Unable to close the ticket.";
@@ -695,10 +743,11 @@ public class TicketsController : Controller
 
         if (Guid.TryParse(identifier, out var profileId))
         {
-            return await _supabaseService.GetProfileByIdAsync(profileId, cancellationToken);
+            return await _supabaseService.GetProfileByIdAsync(profileId, GetSupabaseAccessToken() ?? string.Empty, cancellationToken);
         }
 
-        return await _supabaseService.GetProfileByEmailAsync(identifier, cancellationToken);
+        // No fallback to email lookup - return null if not a valid GUID
+        return null;
     }
 
     private Guid GetCurrentProfileId()
@@ -751,22 +800,17 @@ public class TicketsController : Controller
         return nextIndex == currentIndex + 1 || (currentIndex == 0 && nextIndex == 1) || (currentIndex == 3 && nextIndex == 4);
     }
 
-   
-private static string NormalizeStatus(string? status)
-{
-    if (string.IsNullOrWhiteSpace(status))
-        return string.Empty;
-
-    return status.Trim().ToLowerInvariant() switch
+    private static string NormalizeStatus(string status)
     {
-        "open" => "Open",
-        "assigned" => "Assigned",
-        "in progress" => "In Progress",
-        "resolved" => "Resolved",
-        "closed" => "Closed",
-        _ => string.Empty
-    };
-}
-
+        return status switch
+        {
+            "Open" => "Open",
+            "Assigned" => "Assigned",
+            "In Progress" => "In Progress",
+            "Resolved" => "Resolved",
+            "Closed" => "Closed",
+            _ => status
+        };
+    }
 
 }

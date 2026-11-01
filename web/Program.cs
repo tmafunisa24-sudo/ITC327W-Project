@@ -20,6 +20,7 @@ builder.Services.AddSingleton<ServiceHub_IT.Services.Ai.TicketPredictionModel>()
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+    
     {
         options.Cookie.Name = "ServiceHubITAuth";
         options.Cookie.HttpOnly = true;
@@ -35,7 +36,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
         options.Events.OnRedirectToLogin = context =>
         {
-            if (context.Request.Path.StartsWithSegments("/Notifications") ||
+            if (context.Request.Path.StartsWithSegments("/api") ||
+                context.Request.Path.StartsWithSegments("/Notifications") ||
                 context.Request.Headers["Accept"].ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -48,7 +50,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
         options.Events.OnRedirectToAccessDenied = context =>
         {
-            if (context.Request.Path.StartsWithSegments("/Notifications") ||
+            if (context.Request.Path.StartsWithSegments("/api") ||
+                context.Request.Path.StartsWithSegments("/Notifications") ||
                 context.Request.Headers["Accept"].ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -74,6 +77,26 @@ builder.Services.AddControllersWithViews(options =>
     options.Filters.AddService<StatusAuthorizationFilter>();
 });
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
+
+builder.Services.AddHttpClient<SupabaseService>();
+// CORS for Flutter clients (mobile doesn't need it, web does)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FlutterClient", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:3000",
+                "http://localhost:8080",
+                "http://localhost:5000",
+                "http://localhost:5001",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();   // ⚠️ required for cookies
+    });
+});
 
 var app = builder.Build();
 
@@ -108,6 +131,7 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors("FlutterClient");
 app.UseAuthentication();
 app.UseAuthorization();
 
