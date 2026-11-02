@@ -52,33 +52,52 @@ public sealed class TicketsApiController : ControllerBase
             var email = User.Identity?.Name
                 ?? User.FindFirst(ClaimTypes.Email)?.Value
                 ?? string.Empty;
+            var profileIdClaim = User.FindFirst("profile_id")?.Value;
+            var accessToken = User.FindFirst("supabase_access_token")?.Value;
+
+            if (!Guid.TryParse(profileIdClaim, out var profileId) ||
+                string.IsNullOrWhiteSpace(accessToken))
+            {
+                _logger.LogWarning(
+                    "API Tickets request is missing required identity data. HasProfileId={HasProfileId}, HasToken={HasToken}.",
+                    Guid.TryParse(profileIdClaim, out _),
+                    !string.IsNullOrWhiteSpace(accessToken));
+
+                return Unauthorized(new ApiErrorDto
+                {
+                    Error = "Your session has expired. Please log in again."
+                });
+            }
+
+            _logger.LogInformation(
+                "API Tickets request for ProfileId: {ProfileId}, HasToken: {HasToken}",
+                profileId,
+                !string.IsNullOrWhiteSpace(accessToken));
 
             IReadOnlyList<ServiceHub_IT.Models.Ticket> tickets;
 
             if (User.IsInRole("Admin"))
             {
                 tickets = await _ticketService.GetTicketsAsync(
-                    cancellationToken: cancellationToken);
+                    accessToken: accessToken,
+                    cancellationToken: cancellationToken,
+                    throwOnError: true);
             }
             else if (User.IsInRole("Technician"))
             {
                 tickets = await _ticketService.GetTicketsAsync(
                     assignedTechnician: email,
-                    cancellationToken: cancellationToken);
+                    accessToken: accessToken,
+                    cancellationToken: cancellationToken,
+                    throwOnError: true);
             }
             else
             {
-                var profileIdClaim = User.FindFirst("profile_id")?.Value
-                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                if (!Guid.TryParse(profileIdClaim, out var profileId))
-                {
-                    return Ok(Array.Empty<object>());
-                }
-
                 tickets = await _ticketService.GetTicketsAsync(
                     employeeId: profileId,
-                    cancellationToken: cancellationToken);
+                    accessToken: accessToken,
+                    cancellationToken: cancellationToken,
+                    throwOnError: true);
             }
 
             // Optional query-string filters
@@ -124,7 +143,11 @@ public sealed class TicketsApiController : ControllerBase
 
         try
         {
-            var ticket = await _ticketService.GetTicketByIdAsync(id, User.FindFirst("supabase_access_token")?.Value, cancellationToken);
+            var ticket = await _ticketService.GetTicketByIdAsync(
+                id,
+                User.FindFirst("supabase_access_token")?.Value,
+                cancellationToken,
+                throwOnError: true);
             if (ticket is null)
             {
                 return NotFound(new ApiErrorDto { Error = "Ticket not found." });
@@ -438,21 +461,22 @@ public async Task<IActionResult> UpdateStatus(
         // ── Role check for technicians ──
         // Technicians can only update tickets assigned to them.
         // Admins can update anything.
-        if (User.IsInRole("Technician") && !User.IsInRole("Admin"))
+        var isAdmin = User.IsInRole("Admin");
+        var isTechnician = User.IsInRole("Technician") && !isAdmin;
+        if (isTechnician)
         {
             var currentUserEmail = User.Identity?.Name
                 ?? User.FindFirst(ClaimTypes.Email)?.Value
                 ?? string.Empty;
+            var currentProfileId = User.FindFirst("profile_id")?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var hasProfileId = Guid.TryParse(currentProfileId, out var technicianProfileId);
 
-            var isAssigned = string.Equals(
-                ticket.assigned_technician,
-                currentUserEmail,
-                StringComparison.OrdinalIgnoreCase);
+            var isAssigned = (hasProfileId && ticket.technician_id == technicianProfileId)
+                || (!string.IsNullOrWhiteSpace(currentUserEmail)
+                    && string.Equals(ticket.assigned_technician, currentUserEmail, StringComparison.OrdinalIgnoreCase));
 
-            // Allow if unassigned (they're taking it) OR already assigned to them
-            var isUnassigned = string.IsNullOrWhiteSpace(ticket.assigned_technician);
-
-            if (!isAssigned && !isUnassigned)
+            if (!isAssigned)
             {
                 return StatusCode(403, new ApiErrorDto
                 {
@@ -463,13 +487,23 @@ public async Task<IActionResult> UpdateStatus(
 
         // ── Validate workflow transition ──
         var normalizedNextStatus = NormalizeStatus(request.Status);
+        if (!CanTransition(ticket.status, normalizedNextStatus, isAdmin, isTechnician))
+        {
+            return BadRequest(new ApiErrorDto
+            {
+                Error = isTechnician
+                    ? "Technicians may move assigned tickets from Assigned to In Progress and from In Progress to Resolved."
+                    : "Select a valid ticket status."
+            });
+        }
 
         // ── Apply updates ──
         var actor = User.Identity?.Name
             ?? User.FindFirst(ClaimTypes.Email)?.Value
             ?? "Someone";
 
-        // Optional assignment changes are admin-only; technicians may only self-assign an unassigned ticket.
+        var previousStatus = ticket.status;
+        // Assignment changes are admin-only; technician assignment is validated above.
         var assignmentChanged = false;
         Profile? assignedTechnicianProfile = null;
         if (request.AssignmentSubmitted || request.AssignedTechnicianId.HasValue)
@@ -498,42 +532,11 @@ public async Task<IActionResult> UpdateStatus(
                 ticket.assigned_technician = assignedTechnicianProfile.Email;
             }
         }
-        else if (normalizedNextStatus == "Assigned"
-                 && string.IsNullOrWhiteSpace(ticket.assigned_technician)
-                 && User.IsInRole("Technician"))
-        {
-            var profileIdClaim = User.FindFirst("profile_id")?.Value
-                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            assignedTechnicianProfile = Guid.TryParse(profileIdClaim, out var currentTechnicianId)
-                ? await _supabaseService.GetProfileByIdAsync(
-                    currentTechnicianId,
-                    User.FindFirst("supabase_access_token")?.Value ?? string.Empty,
-                    cancellationToken)
-                : null;
-            if (assignedTechnicianProfile is not null && assignedTechnicianProfile.Id != Guid.Empty)
-            {
-                ticket.technician_id = assignedTechnicianProfile.Id;
-                ticket.assigned_technician = assignedTechnicianProfile.Email;
-                assignmentChanged = true;
-            }
-        }
-
         if (assignmentChanged && assignedTechnicianProfile is not null
             && string.Equals(ticket.status, "Open", StringComparison.OrdinalIgnoreCase)
             && string.Equals(normalizedNextStatus, ticket.status, StringComparison.OrdinalIgnoreCase))
         {
             normalizedNextStatus = "Assigned";
-        }
-
-        var statusUnchanged = string.Equals(ticket.status, normalizedNextStatus, StringComparison.OrdinalIgnoreCase);
-        if (!CanTransition(ticket.status, normalizedNextStatus) && !(assignmentChanged && statusUnchanged))
-        {
-            return BadRequest(new ApiErrorDto
-            {
-                Error = $"Cannot move from '{ticket.status}' to '{normalizedNextStatus}'. " +
-                        "Status must advance one step in order: " +
-                        "Open → Assigned → In Progress → Resolved → Closed."
-            });
         }
 
         ticket.status = normalizedNextStatus;
@@ -549,15 +552,27 @@ public async Task<IActionResult> UpdateStatus(
         if (!string.IsNullOrWhiteSpace(request.Comment))
         {
             var trimmedComment = request.Comment.Trim();
+            var timestampedComment = $"[{DateTime.UtcNow:O}] {actor}: {trimmedComment}";
             ticket.comments = string.IsNullOrWhiteSpace(ticket.comments)
-                ? $"{actor}: {trimmedComment}"
-                : $"{ticket.comments}\n{actor}: {trimmedComment}";
+                ? timestampedComment
+                : $"{ticket.comments}\n{timestampedComment}";
+        }
+
+        if (request.ScreenshotUrl is not null)
+        {
+            ticket.screenshot_url = string.IsNullOrWhiteSpace(request.ScreenshotUrl)
+                ? null
+                : request.ScreenshotUrl.Trim();
         }
 
         // Auto-set closed_at when transitioning to Closed
         if (normalizedNextStatus == "Closed")
         {
             ticket.closed_at = DateTime.UtcNow;
+        }
+        else if (isAdmin && string.Equals(previousStatus, "Closed", StringComparison.OrdinalIgnoreCase))
+        {
+            ticket.closed_at = null;
         }
 
         // ── Persist ──
@@ -629,7 +644,7 @@ public async Task<IActionResult> UpdateStatus(
                         {
                             await _notificationService.CreateNotificationForEmailAsync(
                                 commentRecipient,
-                                "New comment on your ticket",
+                            "New Comment",
                                 $"{actor} added a comment to ticket '{ticket.title}'.",
                                 "ticket_comment",
                                 ticketLink,
@@ -796,7 +811,8 @@ public async Task<IActionResult> ConfirmPayment(
             });
         }
 
-        var confirmed = await _ticketService.ConfirmPaymentAsync(id, cancellationToken);
+        var confirmed = await _ticketService.ConfirmPaymentAsync(
+            id, cancellationToken, User.FindFirst("supabase_access_token")?.Value);
         if (!confirmed)
         {
             return StatusCode(500, new ApiErrorDto
@@ -821,7 +837,7 @@ public async Task<IActionResult> ConfirmPayment(
 // ────────────────────────────────────────────────────────
 // Workflow helpers (mirrors MVC TicketsController logic)
 // ────────────────────────────────────────────────────────
-private static bool CanTransition(string? currentStatus, string nextStatus)
+private static bool CanTransition(string? currentStatus, string nextStatus, bool isAdmin, bool isTechnician)
 {
     if (string.IsNullOrWhiteSpace(currentStatus))
     {
@@ -838,7 +854,19 @@ private static bool CanTransition(string? currentStatus, string nextStatus)
         return false;
     }
 
-    // Allow: advance one step, or same-status no-op (idempotent update)
+    if (isAdmin)
+    {
+        return true;
+    }
+
+    if (isTechnician)
+    {
+        return currentIndex == nextIndex
+            || (currentStatus == "Assigned" && nextStatus == "In Progress")
+            || (currentStatus == "In Progress" && nextStatus == "Resolved");
+    }
+
+    // Generic workflow transition for any future authorized role.
     if (nextIndex == currentIndex)
     {
         return true;

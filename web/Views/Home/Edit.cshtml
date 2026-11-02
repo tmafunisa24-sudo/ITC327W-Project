@@ -1,0 +1,45 @@
+@model ServiceHub_IT.Models.ProfileEditViewModel
+@{
+    ViewData["Title"] = "Edit Profile";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid px-0 account-profile-page">
+    <header class="hero-header service-page-hero">
+        <div>
+            <span class="service-page-kicker">ACCOUNT</span>
+            <h1>Edit Profile</h1>
+            <p>Update your personal contact and profile image details.</p>
+        </div>
+    </header>
+
+    <section class="card-custom account-details-card" aria-label="Edit personal information">
+        <form asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label">Full name</label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Phone" class="form-label">Phone</label>
+                <input asp-for="Phone" class="form-control" autocomplete="tel" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="ProfileImage" class="form-label">Profile image URL</label>
+                <input asp-for="ProfileImage" class="form-control" type="url" placeholder="https://example.com/photo.jpg" />
+                <span asp-validation-for="ProfileImage" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a asp-action="Profile" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </section>
+</div>

@@ -1,4 +1,3 @@
-// Summary: Retrieves dashboard data through the dashboard API.
 // lib/services/dashboard_service.dart
 
 import '../api/dashboard_api.dart';

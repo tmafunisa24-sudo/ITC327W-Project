@@ -33,7 +33,6 @@ public class AdminController : Controller
         var administratorProfiles = profiles.Where(p => string.Equals(p.Role, "Admin", StringComparison.OrdinalIgnoreCase)).ToList();
         var pendingProfiles = profiles.Where(p => string.Equals(p.Status, "Pending", StringComparison.OrdinalIgnoreCase)
             || string.Equals(p.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase)).ToList();
-
         var technicianTicketCounts = tickets
             .Where(t => !string.IsNullOrWhiteSpace(t.assigned_technician))
             .GroupBy(t => t.assigned_technician!, StringComparer.OrdinalIgnoreCase)
@@ -190,6 +189,98 @@ public class AdminController : Controller
         };
 
         return View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Technicians(CancellationToken cancellationToken)
+    {
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        var technicians = await _supabaseService.GetProfilesByRoleAsync(
+            "Technician", accessToken, cancellationToken);
+        return View(technicians.ToList());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateTechnician(
+        Guid id,
+        string role,
+        string status,
+        CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+        {
+            TempData["ErrorMessage"] = "A valid technician record is required to update the profile.";
+            return RedirectToAction(nameof(Technicians));
+        }
+
+        try
+        {
+            var accessToken = User.FindFirst("supabase_access_token")?.Value ?? string.Empty;
+            var profile = await _supabaseService.GetProfileByIdAsync(id, accessToken, cancellationToken);
+            if (profile is null || !string.Equals(profile.Role, "Technician", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["ErrorMessage"] = "The selected technician could not be found.";
+                return RedirectToAction(nameof(Technicians));
+            }
+
+            profile.Role = NormalizeRole(role);
+            profile.Status = NormalizeStatus(status);
+            if (string.IsNullOrWhiteSpace(profile.Role))
+            {
+                TempData["ErrorMessage"] = "The selected role is not supported.";
+                return RedirectToAction(nameof(Technicians));
+            }
+
+            profile.UpdatedAt = DateTime.UtcNow;
+            var success = await _supabaseService.UpdateProfileAsync(profile, cancellationToken);
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
+                ? "Technician profile updated successfully."
+                : "The technician profile could not be updated right now.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Technician profile update failed for profile {ProfileId}.", id);
+            TempData["ErrorMessage"] = "The technician profile could not be updated right now.";
+        }
+
+        return RedirectToAction(nameof(Technicians));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteTechnician(Guid id, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+        {
+            TempData["ErrorMessage"] = "A valid technician record is required to delete the profile.";
+            return RedirectToAction(nameof(Technicians));
+        }
+
+        try
+        {
+            var profile = await _supabaseService.GetProfileByIdAsync(
+                id,
+                User.FindFirst("supabase_access_token")?.Value ?? string.Empty,
+                cancellationToken);
+            if (profile is null || !string.Equals(profile.Role, "Technician", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["ErrorMessage"] = "The selected technician could not be found.";
+                return RedirectToAction(nameof(Technicians));
+            }
+
+            var deleted = await _supabaseService.DeleteProfileAsync(id, cancellationToken);
+            TempData[deleted ? "SuccessMessage" : "ErrorMessage"] = deleted
+                ? "Technician profile deleted successfully."
+                : "The technician profile could not be deleted right now.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Technician profile deletion failed for profile {ProfileId}.", id);
+            TempData["ErrorMessage"] = "The technician profile could not be deleted right now.";
+        }
+
+        return RedirectToAction(nameof(Technicians));
     }
 
     private static string NormalizeRole(string? role)

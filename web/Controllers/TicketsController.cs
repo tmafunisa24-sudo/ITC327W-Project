@@ -146,7 +146,7 @@ public class TicketsController : Controller
             category = model.Category,
             payment_status = "Pending",
             comments = string.Empty,
-            // Initial technician assignment is handled by the Supabase BEFORE INSERT trigger.
+            // TicketService applies device-type technician assignment before inserting.
             assigned_technician = null,
             technician_id = null,
             status = "Open",
@@ -431,7 +431,7 @@ public class TicketsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        if (!await _ticketService.ConfirmPaymentAsync(id, cancellationToken))
+        if (!await _ticketService.ConfirmPaymentAsync(id, cancellationToken, GetSupabaseAccessToken()))
         {
             TempData["Error"] = "Unable to confirm the payment.";
             return RedirectToAction(nameof(Details), new { id });
@@ -475,18 +475,14 @@ public class TicketsController : Controller
             return NotFound();
         }
 
-        if (User.IsInRole("Technician") && !User.IsInRole("Admin") && !IsAssignedToCurrentTechnician(ticket))
+        var isAdmin = User.IsInRole("Admin");
+        var isTechnician = User.IsInRole("Technician") && !isAdmin;
+        if (isTechnician && !IsAssignedToCurrentTechnician(ticket))
         {
             return Forbid();
         }
 
         var normalizedStatus = NormalizeStatus(model.Status);
-        if (User.IsInRole("Technician") && !User.IsInRole("Admin")
-            && normalizedStatus is not ("In Progress" or "Resolved" or "Closed"))
-        {
-            TempData["Error"] = "Technicians may only set tickets to In Progress, Resolved, or Closed.";
-            return RedirectToAction(nameof(Details), new { id });
-        }
 
         Profile? newlyAssignedTechnician = null;
         var assignmentChanged = false;
@@ -525,16 +521,26 @@ public class TicketsController : Controller
             normalizedStatus = "Assigned";
         }
 
-        var statusUnchanged = string.Equals(ticket.status, normalizedStatus, StringComparison.OrdinalIgnoreCase);
-        if (!CanTransition(ticket.status, normalizedStatus) && !(assignmentChanged && statusUnchanged))
+        if (!CanTransition(ticket.status, normalizedStatus, isAdmin, isTechnician))
         {
-            TempData["Error"] = "Status updates must follow the required workflow order.";
+            TempData["Error"] = isTechnician
+                ? "Technicians may move assigned tickets from Assigned to In Progress and from In Progress to Resolved."
+                : "Select a valid ticket status.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
         var actor = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? string.Empty;
+        var previousStatus = ticket.status;
         ticket.status = normalizedStatus;
         ticket.updated_at = DateTime.UtcNow;
+        if (string.Equals(normalizedStatus, "Closed", StringComparison.OrdinalIgnoreCase))
+        {
+            ticket.closed_at = DateTime.UtcNow;
+        }
+        else if (isAdmin && string.Equals(previousStatus, "Closed", StringComparison.OrdinalIgnoreCase))
+        {
+            ticket.closed_at = null;
+        }
         if (model.DueDate.HasValue)
         {
             ticket.due_date = model.DueDate.Value;
@@ -542,9 +548,17 @@ public class TicketsController : Controller
 
         if (!string.IsNullOrWhiteSpace(model.Comment))
         {
+            var timestampedComment = $"[{DateTime.UtcNow:O}] {actor}: {model.Comment.Trim()}";
             ticket.comments = string.IsNullOrWhiteSpace(ticket.comments)
-                ? $"{actor}: {model.Comment}"
-                : $"{ticket.comments}\n{actor}: {model.Comment}";
+                ? timestampedComment
+                : $"{ticket.comments}\n{timestampedComment}";
+        }
+
+        if (model.ScreenshotUrl is not null)
+        {
+            ticket.screenshot_url = string.IsNullOrWhiteSpace(model.ScreenshotUrl)
+                ? null
+                : model.ScreenshotUrl.Trim();
         }
 
         var updated = await _ticketService.UpdateTicketAsync(ticket, GetSupabaseAccessToken(), cancellationToken);
@@ -554,58 +568,70 @@ public class TicketsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var ticketLink = Url.Action("Details", "Tickets", new { id = ticket.id }) ?? $"/Tickets/Details?id={ticket.id}";
-        var statusMessage = $"Ticket '{ticket.title}' is now {ticket.status}.";
-        if (assignmentChanged && newlyAssignedTechnician is not null)
+        try
         {
-            await _notificationService.CreateNotificationAsync(
-                newlyAssignedTechnician.Id,
-                "Ticket Assigned",
-                $"Ticket '{ticket.title}' has been assigned to you.",
-                "ticket_assigned",
-                ticketLink,
-                cancellationToken);
-        }
-
-        await _notificationService.CreateNotificationForEmailAsync(
-            ticket.requester,
-            "Ticket status updated",
-            statusMessage,
-            "ticket_status",
-            ticketLink,
-            cancellationToken);
-
-        var assignedTechnician = !string.IsNullOrWhiteSpace(ticket.assigned_technician)
-            ? ticket.assigned_technician
-            : (ticket.technician_id.HasValue ? (await ResolveProfileAsync(ticket.technician_id.Value.ToString(), cancellationToken))?.Email : null);
-        if (!string.IsNullOrWhiteSpace(assignedTechnician) && !string.Equals(assignedTechnician, ticket.requester, StringComparison.OrdinalIgnoreCase))
-        {
-            await _notificationService.CreateNotificationForEmailAsync(
-                assignedTechnician,
-                "Ticket status updated",
-                statusMessage,
-                "ticket_status",
-                ticketLink,
-                cancellationToken);
-        }
-
-        if (!string.IsNullOrWhiteSpace(model.Comment))
-        {
-            var commenter = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? "Someone";
-            var commentRecipient = !string.Equals(ticket.requester, commenter, StringComparison.OrdinalIgnoreCase)
-                ? ticket.requester
-                : assignedTechnician;
-
-            if (!string.IsNullOrWhiteSpace(commentRecipient))
+            var ticketLink = Url.Action("Details", "Tickets", new { id = ticket.id }) ?? $"/Tickets/Details?id={ticket.id}";
+            var statusMessage = $"Ticket '{ticket.title}' is now {ticket.status}.";
+            if (assignmentChanged && newlyAssignedTechnician is not null)
             {
-                await _notificationService.CreateNotificationForEmailAsync(
-                    commentRecipient,
-                    "New comment on your ticket",
-                    $"{commenter} added a comment to ticket '{ticket.title}'.",
-                    "ticket_comment",
+                await _notificationService.CreateNotificationAsync(
+                    newlyAssignedTechnician.Id,
+                    "Ticket Assigned",
+                    $"Ticket '{ticket.title}' has been assigned to you.",
+                    "ticket_assigned",
                     ticketLink,
                     cancellationToken);
             }
+
+            if (!string.IsNullOrWhiteSpace(ticket.requester) &&
+                !string.Equals(ticket.requester, actor, StringComparison.OrdinalIgnoreCase))
+            {
+                await _notificationService.CreateNotificationForEmailAsync(
+                    ticket.requester,
+                    "Ticket status updated",
+                    statusMessage,
+                    "ticket_status",
+                    ticketLink,
+                    cancellationToken);
+            }
+
+            var assignedTechnician = !string.IsNullOrWhiteSpace(ticket.assigned_technician)
+                ? ticket.assigned_technician
+                : (ticket.technician_id.HasValue ? (await ResolveProfileAsync(ticket.technician_id.Value.ToString(), cancellationToken))?.Email : null);
+            if (!string.IsNullOrWhiteSpace(assignedTechnician) &&
+                !string.Equals(assignedTechnician, actor, StringComparison.OrdinalIgnoreCase))
+            {
+                await _notificationService.CreateNotificationForEmailAsync(
+                    assignedTechnician,
+                    "Ticket status updated",
+                    statusMessage,
+                    "ticket_status",
+                    ticketLink,
+                    cancellationToken);
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Comment))
+            {
+                var commentRecipient = !string.Equals(ticket.requester, actor, StringComparison.OrdinalIgnoreCase)
+                    ? ticket.requester
+                    : assignedTechnician;
+
+                if (!string.IsNullOrWhiteSpace(commentRecipient) &&
+                    !string.Equals(commentRecipient, actor, StringComparison.OrdinalIgnoreCase))
+                {
+                    await _notificationService.CreateNotificationForEmailAsync(
+                        commentRecipient,
+                        "New Comment",
+                        $"{actor} added a comment to ticket '{ticket.title}'.",
+                        "ticket_comment",
+                        ticketLink,
+                        cancellationToken);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to dispatch ticket update notifications for ticket {TicketId}.", ticket.id);
         }
 
         TempData["Success"] = "Ticket status updated successfully.";
@@ -642,9 +668,10 @@ public class TicketsController : Controller
         }
 
         var actor = string.IsNullOrWhiteSpace(email) ? "User" : email;
+        var timestampedComment = $"[{DateTime.UtcNow:O}] {actor}: {commentText}";
         ticket.comments = string.IsNullOrWhiteSpace(ticket.comments)
-            ? $"{actor}: {commentText}"
-            : $"{ticket.comments}\n{actor}: {commentText}";
+            ? timestampedComment
+            : $"{ticket.comments}\n{timestampedComment}";
         ticket.updated_at = DateTime.UtcNow;
 
         if (!await _ticketService.UpdateTicketAsync(ticket, GetSupabaseAccessToken(), cancellationToken))
@@ -663,7 +690,7 @@ public class TicketsController : Controller
         {
             await _notificationService.CreateNotificationForEmailAsync(
                 recipient,
-                "New comment on your ticket",
+                "New Comment",
                 $"{actor} added a comment to ticket '{ticket.title}'.",
                 "ticket_comment",
                 ticketLink,
@@ -723,7 +750,7 @@ public class TicketsController : Controller
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
     {
-        var deleted = await _ticketService.DeleteTicketAsync(id, cancellationToken);
+        var deleted = await _ticketService.DeleteTicketAsync(id, cancellationToken, GetSupabaseAccessToken());
         if (!deleted)
         {
             TempData["Error"] = "Unable to delete the ticket.";
@@ -778,7 +805,7 @@ public class TicketsController : Controller
         return User.FindFirst("supabase_access_token")?.Value;
     }
 
-    private static bool CanTransition(string currentStatus, string nextStatus)
+    private static bool CanTransition(string currentStatus, string nextStatus, bool isAdmin, bool isTechnician)
     {
         var workflow = new[]
         {
@@ -795,6 +822,18 @@ public class TicketsController : Controller
         if (currentIndex < 0 || nextIndex < 0)
         {
             return false;
+        }
+
+        if (isAdmin)
+        {
+            return true;
+        }
+
+        if (isTechnician)
+        {
+            return currentIndex == nextIndex
+                || (currentStatus == "Assigned" && nextStatus == "In Progress")
+                || (currentStatus == "In Progress" && nextStatus == "Resolved");
         }
 
         return nextIndex == currentIndex + 1 || (currentIndex == 0 && nextIndex == 1) || (currentIndex == 3 && nextIndex == 4);

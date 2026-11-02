@@ -4,15 +4,15 @@
     Layout = "_Layout";
 }
 
-<div class="container-fluid">
-    <div class="hero-panel">
+<div class="container-fluid admin-users-page">
+    <header class="hero-header service-page-hero">
         <div>
-            <span class="hero-badge"><i class="bi bi-people-fill"></i>Admin Access</span>
-            <h1 class="h4 mb-2 mt-3">User Management</h1>
-            <p class="text-muted mb-0">Approve, assign roles, and manage access for every ServiceHub IT account.</p>
+            <span class="service-page-kicker">DIRECTORY</span>
+            <h1>User Management</h1>
+            <p>Approve, assign roles, and manage access.</p>
         </div>
-        <div class="topbar-pill"><i class="bi bi-shield-check me-2"></i>@Model.PendingApprovals pending approvals</div>
-    </div>
+        <div class="users-pending-summary"><i class="bi bi-shield-check"></i>@Model.PendingApprovals pending approvals</div>
+    </header>
 
     @if (TempData["SuccessMessage"] is string success)
     {
@@ -28,24 +28,24 @@
     }
 
     <div class="row g-4 mb-4">
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Total Users</h6><h2 class="mb-0">@Model.TotalUsers</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Pending Registration</h6><h2 class="mb-0">@Model.PendingRegistrationApprovals</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Pending Technician Approval</h6><h2 class="mb-0">@Model.PendingTechnicianApprovals</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Clients</h6><h2 class="mb-0">@Model.Employees</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Technicians & Admins</h6><h2 class="mb-0">@(Model.Technicians + Model.Administrators)</h2></div></div>
+        <div class="col-md-3"><div class="card-custom service-metric-card"><span class="card-title">TOTAL USERS</span><strong class="card-value">@Model.TotalUsers</strong></div></div>
+        <div class="col-md-3"><div class="card-custom service-metric-card"><span class="card-title">PENDING REGISTRATION</span><strong class="card-value">@Model.PendingRegistrationApprovals</strong></div></div>
+        <div class="col-md-3"><div class="card-custom service-metric-card"><span class="card-title">PENDING TECHNICIAN APPROVAL</span><strong class="card-value">@Model.PendingTechnicianApprovals</strong></div></div>
+        <div class="col-md-3"><div class="card-custom service-metric-card"><span class="card-title">CLIENTS</span><strong class="card-value">@Model.Employees</strong></div></div>
+        <div class="col-md-3"><div class="card-custom service-metric-card"><span class="card-title">TECHNICIANS &amp; ADMINS</span><strong class="card-value">@(Model.Technicians + Model.Administrators)</strong></div></div>
     </div>
 
-    <div class="card p-4">
+    <div class="card-custom users-table-card">
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
                     <tr>
-                        <th>Email</th>
-                        <th>Full Name</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th class="text-end">Actions</th>
+                        <th class="card-title">Email</th>
+                        <th class="card-title">Full Name</th>
+                        <th class="card-title">Role</th>
+                        <th class="card-title">Status</th>
+                        <th class="card-title">Created</th>
+                        <th class="card-title text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -58,14 +58,14 @@
                                 <span class="badge bg-secondary">@profile.Role</span>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark">@profile.Status</span>
+                                <span class="prototype-pill @(string.Equals(profile.Status, "Active", StringComparison.OrdinalIgnoreCase) || string.Equals(profile.Status, "Approved", StringComparison.OrdinalIgnoreCase) ? "pill-success" : string.Equals(profile.Status, "Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(profile.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase) ? "pill-warning" : string.Equals(profile.Status, "Disabled", StringComparison.OrdinalIgnoreCase) ? "pill-danger" : "pill-neutral")">@profile.Status</span>
                                 @if (string.Equals(profile.Status, "Pending", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    <span class="badge bg-warning text-dark ms-1">New Registration</span>
+                                    <span class="prototype-pill pill-warning ms-1">New Registration</span>
                                 }
                                 else if (string.Equals(profile.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    <span class="badge bg-info text-dark ms-1">Technician Approval</span>
+                                    <span class="prototype-pill pill-blue ms-1">Technician Approval</span>
                                 }
                             </td>
                             <td>@profile.CreatedAt.ToLocalTime().ToString("g")</td>

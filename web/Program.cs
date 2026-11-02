@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using System.Net;
 using ServiceHub_IT.Filters;
 using ServiceHub_IT.Services;
 
@@ -16,6 +17,8 @@ builder.Services.AddHttpClient<DepartmentService>();
 builder.Services.AddHttpClient<ReportService>();
 builder.Services.AddHttpClient<PdfProcessingService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHostedService<OverdueTicketService>();
 builder.Services.AddSingleton<ServiceHub_IT.Services.Ai.TicketPredictionModel>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -84,17 +87,28 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FlutterClient", policy =>
     {
-        policy
-            .WithOrigins(
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.SetIsOriginAllowed(origin =>
+                Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
+                (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                 (IPAddress.TryParse(uri.Host, out var address) && IPAddress.IsLoopback(address))));
+        }
+        else
+        {
+            policy.WithOrigins(
                 "http://localhost:3000",
                 "http://localhost:8080",
                 "http://localhost:5000",
                 "http://localhost:5001",
                 "http://localhost:5173",
-                "http://127.0.0.1:5173")
+                "http://127.0.0.1:5173");
+        }
+
+        policy
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials();   // ⚠️ required for cookies
+            .AllowCredentials();
     });
 });
 

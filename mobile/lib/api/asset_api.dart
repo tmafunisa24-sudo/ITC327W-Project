@@ -1,4 +1,3 @@
-// Summary: Provides methods for retrieving the asset list and individual asset details from the API.
 // lib/api/asset_api.dart
 
 import 'package:dio/dio.dart';
@@ -37,12 +36,27 @@ class AssetApi {
     if (code == 200) {
       final data = response.data;
       if (data is List) {
-        return data
-            .whereType<Map<String, dynamic>>()
-            .map(Asset.fromJson)
-            .toList();
+        return data.asMap().entries.map((entry) {
+          if (entry.value is! Map) {
+            throw ApiException(
+              'Invalid asset at index ${entry.key}: expected a JSON object.',
+              statusCode: code,
+            );
+          }
+          try {
+            return Asset.fromJson(Map<String, dynamic>.from(entry.value as Map));
+          } catch (error) {
+            throw ApiException(
+              'Unable to parse asset at index ${entry.key}: $error',
+              statusCode: code,
+            );
+          }
+        }).toList();
       }
-      return const [];
+      throw ApiException(
+        'Invalid asset list response: expected a JSON array.',
+        statusCode: code,
+      );
     }
 
     throw ApiException(

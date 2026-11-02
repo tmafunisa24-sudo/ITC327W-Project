@@ -1,4 +1,3 @@
-// Summary: Defines the dashboard metrics data transfer object and its JSON conversion.
 // lib/models/dtos/dashboard_metrics.dart
 
 class DashboardMetrics {

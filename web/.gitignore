@@ -45,3 +45,4 @@ supabase_rls_policies.sql
 supabase_profiles.py
 body.json
 cookies.txt
+supabase_rls_repair.sql

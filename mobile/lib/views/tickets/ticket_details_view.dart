@@ -1,4 +1,3 @@
-// Summary: Displays ticket information and provides ticket updates and payment actions.
 // lib/views/tickets/ticket_details_view.dart
 
 import 'package:flutter/material.dart';
@@ -855,7 +854,6 @@ class _UpdateTicketSheetState extends State<_UpdateTicketSheet> {
   String? _status;
   String? _priority;
   String? _technician;
-  DateTime? _dueDate;
   final _commentController = TextEditingController();
 
   static const _statuses = [
@@ -879,7 +877,6 @@ class _UpdateTicketSheetState extends State<_UpdateTicketSheet> {
       orElse: () => 'Medium',
     );
     _technician = widget.ticket.assignedTechnician;
-    _dueDate = widget.ticket.dueDate;
   }
 
   @override
@@ -895,8 +892,6 @@ class _UpdateTicketSheetState extends State<_UpdateTicketSheet> {
     final ok = await widget.viewModel.updateStatus(
       ticketId: id,
       status: _status ?? widget.ticket.status,
-      assignedTechnician: _technician,
-      dueDate: _dueDate,
       comment: _commentController.text.trim().isEmpty
           ? null
           : _commentController.text.trim(),
@@ -1038,38 +1033,6 @@ class _UpdateTicketSheetState extends State<_UpdateTicketSheet> {
                       ),
                       onChanged: (v) =>
                           _technician = v.trim().isEmpty ? null : v.trim(),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    const Text(
-                      'Due Date',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.calendar_today_outlined),
-                      label: Text(
-                        _dueDate == null
-                            ? 'Select due date'
-                            : _dueDate!.toString().substring(0, 10),
-                      ),
-                      onPressed: () async {
-                        final today = DateTime.now();
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _dueDate ?? today,
-                          firstDate: DateTime(today.year - 1),
-                          lastDate: DateTime(today.year + 10),
-                        );
-                        if (picked != null && mounted) {
-                          setState(() {
-                            _dueDate = picked;
-                          });
-                        }
-                      },
                     ),
                     const SizedBox(height: AppSpacing.md),
                     const Text(

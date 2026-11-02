@@ -83,7 +83,7 @@ public sealed class AuthApiController : ControllerBase
                 });
             }
 
-            var profile = await _supabaseService.GetProfileByIdAsync(
+            var profile = await _supabaseService.GetProfileByAuthUserIdAsync(
                 userId.Value, signIn.AccessToken, cancellationToken);
 
             if (profile is null)
@@ -100,6 +100,24 @@ public sealed class AuthApiController : ControllerBase
                 return StatusCode(403, new ApiErrorDto
                 {
                     Error = "Your account has been disabled. Please contact an administrator."
+                });
+            }
+
+            if (string.Equals(profile.Status, "Pending", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(profile.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(403, new ApiErrorDto
+                {
+                    Error = "This account is awaiting administrator approval."
+                });
+            }
+
+            if (!string.Equals(profile.Status, "Active", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(profile.Status, "Approved", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(403, new ApiErrorDto
+                {
+                    Error = "Your account is not active. Please contact an administrator."
                 });
             }
 
@@ -122,6 +140,14 @@ public sealed class AuthApiController : ControllerBase
                 return StatusCode(403, new ApiErrorDto
                 {
                     Error = "Your account has an unsupported role. Please contact an administrator."
+                });
+            }
+
+            if (!string.Equals(role, "Client", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(403, new ApiErrorDto
+                {
+                    Error = "Administrator and technician accounts must use the ServiceHub IT web portal."
                 });
             }
 
@@ -381,7 +407,10 @@ public sealed class AuthApiController : ControllerBase
                     : request.Position.Trim();
             }
 
-            var updated = await _supabaseService.UpdateProfileAsync(profile, cancellationToken);
+            var updated = await _supabaseService.UpdateProfileAsync(
+                profile,
+                User.FindFirst("supabase_access_token")?.Value,
+                cancellationToken);
             if (!updated)
             {
                 return StatusCode(500, new ApiErrorDto

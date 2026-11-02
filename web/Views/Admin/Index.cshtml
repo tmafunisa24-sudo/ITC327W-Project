@@ -3,149 +3,106 @@
     ViewData["Title"] = "Admin Dashboard";
     Layout = "_Layout";
     var performance = Model.TechnicianPerformance;
+    var clientShare = Model.TotalUsers == 0 ? 0 : (int)Math.Round(Model.Employees * 100d / Model.TotalUsers);
 }
 
-<div class="container-fluid">
-    <div class="hero-panel">
-        <div>
-            <span class="hero-badge"><i class="bi bi-shield-lock"></i>Administrator</span>
-            <h1 class="h4 mb-2 mt-3">Admin Dashboard</h1>
-            <p class="text-muted mb-0">Full control over tickets, assets, staff and service delivery.</p>
+<div class="dashboard-canvas admin-dashboard-page">
+    <section class="prototype-hero">
+        <div class="prototype-hero-copy">
+            <div class="hero-kickers"><span class="hero-admin-pill">Administrator</span><span class="hero-tier-label">Service operations overview</span></div>
+            <h2>Admin Dashboard</h2>
+            <p>Full control over tickets, assets, staff and service delivery.</p>
         </div>
-        <div class="topbar-pill"><i class="bi bi-speedometer2 me-2"></i>Mission Control</div>
-    </div>
+        <div class="telemetry-card">
+            <span class="telemetry-icon"><i class="bi bi-pc-display-horizontal"></i></span>
+            <span class="telemetry-copy"><small><i class="bi bi-circle-fill"></i> Workspace data</small><strong>ServiceHub IT</strong><em>Current records loaded</em></span>
+        </div>
+        <span class="hero-orb hero-orb-one"></span><span class="hero-orb hero-orb-two"></span>
+    </section>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Total Users</h6><h2 class="mb-0">@Model.TotalUsers</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Pending Approval</h6><h2 class="mb-0">@Model.PendingApprovals</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Clients</h6><h2 class="mb-0">@Model.Employees</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Technicians</h6><h2 class="mb-0">@Model.Technicians</h2></div></div>
-    </div>
+    <section class="prototype-section" aria-label="User identity directory">
+        <header class="prototype-section-heading">
+            <div class="prototype-section-name"><span>Users</span><i></i><small>Identity Directory</small></div>
+            <a class="prototype-section-action" asp-controller="Admin" asp-action="Users">Manage directory <i class="bi bi-arrow-right"></i></a>
+        </header>
+        <div class="prototype-metric-grid prototype-user-grid">
+            <article class="prototype-metric-card">
+                <div class="prototype-metric-top"><span>Total users</span><i class="metric-icon metric-icon-blue bi bi-people"></i></div>
+                <div class="prototype-metric-bottom"><strong class="metric-blue-text">@Model.TotalUsers</strong><small><i class="bi bi-people-fill text-success"></i> Across all roles</small></div>
+            </article>
+            <article class="prototype-metric-card">
+                <div class="prototype-metric-top"><span>Pending approval</span><i class="metric-icon metric-icon-amber bi bi-hourglass-split"></i></div>
+                <div class="prototype-metric-bottom"><strong class="metric-amber-text">@Model.PendingApprovals</strong><small><span class="prototype-pill pill-warning-dot">Action Required</span></small></div>
+            </article>
+            <article class="prototype-metric-card">
+                <div class="prototype-metric-top"><span>Clients</span><i class="metric-icon metric-icon-slate bi bi-building"></i></div>
+                <div class="prototype-metric-bottom"><strong>@Model.Employees</strong><small>@clientShare% of user directory</small></div>
+            </article>
+            <article class="prototype-metric-card">
+                <div class="prototype-metric-top"><span>Technicians</span><i class="metric-icon metric-icon-violet bi bi-person-badge"></i></div>
+                <div class="prototype-metric-bottom"><strong class="metric-violet-text">@Model.Technicians</strong><small>Service team accounts</small></div>
+            </article>
+        </div>
+    </section>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Administrators</h6><h2 class="mb-0">@Model.Administrators</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Resolved Tickets</h6><h2 class="mb-0">@Model.ResolvedTickets</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Unresolved Tickets</h6><h2 class="mb-0">@Model.UnresolvedTickets</h2></div></div>
-        <div class="col-md-3"><div class="card p-3 stat-card"><h6 class="text-muted">Profiles</h6><h2 class="mb-0">@Model.Profiles.Count</h2></div></div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-md-6">
-            <div class="card p-4">
-                <h5 class="fw-semibold mb-3">Ticket Operations</h5>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">Assign tickets to technicians</li>
-                    <li class="list-group-item">Set due dates and monitor completion</li>
-                    <li class="list-group-item">Review resolved and unresolved tickets</li>
-                </ul>
+    <div class="prototype-ticket-section">
+        <section class="prototype-section" aria-label="Ticket incident queues">
+            <header class="prototype-section-heading">
+                <div class="prototype-section-name"><span>Tickets</span><i></i><small>Incident Queues</small></div>
+                <a class="prototype-section-action" asp-controller="Tickets" asp-action="Index">View queue <i class="bi bi-arrow-right"></i></a>
+            </header>
+            <div class="prototype-metric-grid prototype-dual-grid">
+                <article class="prototype-metric-card">
+                    <div class="prototype-metric-top"><span>Resolved tickets</span><i class="metric-icon metric-icon-green bi bi-check-circle"></i></div>
+                    <div class="prototype-metric-bottom"><strong class="metric-green-text">@Model.ResolvedTickets</strong><small><span class="prototype-pill pill-success">Resolved and closed</span></small></div>
+                </article>
+                <article class="prototype-metric-card">
+                    <div class="prototype-metric-top"><span>Unresolved tickets</span><i class="metric-icon metric-icon-red bi bi-exclamation-triangle"></i></div>
+                    <div class="prototype-metric-bottom"><strong class="metric-red-text">@Model.UnresolvedTickets</strong><small><span class="prototype-pill pill-danger">Requires attention</span></small></div>
+                </article>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card p-4">
-                <h5 class="fw-semibold mb-3">Top Performers</h5>
-                <p class="mb-1"><strong>Most tickets completed:</strong> @(!string.IsNullOrWhiteSpace(Model.TopTechnician) ? Model.TopTechnician : "No data") (@Model.TopTechnicianCount)</p>
-                <p class="mb-0"><strong>Lowest activity:</strong> @(!string.IsNullOrWhiteSpace(Model.LowestTechnician) ? Model.LowestTechnician : "No data") (@Model.LowestTechnicianCount)</p>
-            </div>
-        </div>
+        </section>
     </div>
+</div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm overflow-hidden">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #2563EB, #1D4ED8); border: none;">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h4 class="mb-1 text-white"><i class="bi bi-trophy-fill me-2"></i>🏆 Technician Performance Leaderboard</h4>
-                            <small class="text-white-50">Live insights from tickets and profiles tables</small>
-                        </div>
-                        <span class="badge bg-white text-primary rounded-pill px-3 py-2">Admin Only</span>
-                    </div>
-                </div>
-                <div class="card-body p-4" style="background:#F8FAFC;">
-                    <div class="row g-4 align-items-stretch">
-                        <div class="col-xl-4">
-                            <div class="card border-0 h-100 shadow-sm" style="background:linear-gradient(135deg,#ffffff,#eff6ff);">
-                                <div class="card-body p-4 text-center">
-                                    <div class="display-6 mb-2" style="color:#2563EB;"><i class="bi bi-trophy-fill"></i></div>
-                                    <h5 class="text-primary mb-1">🏆 Top Technician</h5>
-                                    <h3 class="fw-bold mb-3">@performance.TopTechnicianName</h3>
-                                    <div class="fs-5 fw-semibold text-success mb-2">@performance.TopTechnicianResolvedTickets Tickets Resolved</div>
-                                    <div class="text-muted mb-2">Average Resolution<br /><span class="fw-semibold text-dark">@performance.TopTechnicianAverageResolutionHours.ToString("0.0") Hours</span></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-xl-8">
-                            <div class="card border-0 h-100 shadow-sm">
-                                <div class="card-body p-0">
-                                    <div class="table-responsive">
-                                        <table class="table table-hover align-middle mb-0">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Rank</th>
-                                                    <th>Technician</th>
-                                                    <th>Assigned Tickets</th>
-                                                    <th>Resolved Tickets</th>
-                                                    <th>Average Resolution</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @for (var i = 0; i < performance.Leaderboard.Count; i++)
-                                                {
-                                                    var row = performance.Leaderboard[i];
-                                                    <tr>
-                                                        <td class="fw-semibold">@(i + 1)</td>
-                                                        <td>@row.TechnicianName</td>
-                                                        <td>@row.AssignedTickets</td>
-                                                        <td>@row.ResolvedTickets</td>
-                                                        <td>@row.AverageResolutionHours.ToString("0.0") Hours</td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
+<div class="admin-supporting-grid">
+    <section class="supporting-card">
+        <header class="supporting-card-heading"><div><span>Service team</span><h2>Technician performance</h2></div><i class="bi bi-activity"></i></header>
+        <div class="table-responsive">
+            <table class="table prototype-table align-middle mb-0">
+                <thead><tr><th>Rank</th><th>Technician</th><th>Assigned tickets</th><th>Resolved</th><th>Avg. resolution</th></tr></thead>
+                <tbody>
+                    @for (var i = 0; i < performance.Leaderboard.Count; i++)
+                    {
+                        var row = performance.Leaderboard[i];
+                        <tr><td><span class="prototype-rank">@(i + 1)</span></td><td class="fw-semibold">@row.TechnicianName</td><td>@row.AssignedTickets</td><td>@row.ResolvedTickets</td><td>@row.AverageResolutionHours.ToString("0.0") hours</td></tr>
+                    }
+                </tbody>
+            </table>
         </div>
-    </div>
+    </section>
 
-    <div class="row g-4">
-        <div class="col-lg-7">
-            <div class="card p-4">
-                <h5 class="fw-semibold mb-3">Recent Tickets</h5>
-                        @if (Model.Tickets.Any())
+    <section class="supporting-card">
+        <header class="supporting-card-heading"><div><span>Latest activity</span><h2>Recent tickets</h2></div><i class="bi bi-ticket-perforated"></i></header>
+        @if (Model.Tickets.Any())
+        {
+            <div class="table-responsive">
+                <table class="table prototype-table align-middle mb-0">
+                    <thead><tr><th>Ticket</th><th>Status</th><th>Assigned technician</th></tr></thead>
+                    <tbody>
+                        @foreach (var ticket in Model.Tickets.Take(8))
                         {
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle">
-                                    <thead><tr><th>Title</th><th>Status</th><th>Assigned</th></tr></thead>
-                                    <tbody>
-                                        @foreach (var ticket in Model.Tickets.Take(8))
-                                        {
-                                            <tr>
-                                                <td><a asp-controller="Tickets" asp-action="Details" asp-route-id="@ticket.id">@ticket.title</a></td>
-                                                <td><span class="badge bg-secondary">@ticket.status</span></td>
-                                                <td>@(string.IsNullOrWhiteSpace(ticket.assigned_technician) ? (ticket.technician_id.HasValue ? "Assigned" : "Unassigned") : ticket.assigned_technician)</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
+                            <tr><td><a class="prototype-ticket-link" asp-controller="Tickets" asp-action="Details" asp-route-id="@ticket.id">@ticket.title</a></td><td><span class="prototype-status">@ticket.status</span></td><td>@(string.IsNullOrWhiteSpace(ticket.assigned_technician) ? (ticket.technician_id.HasValue ? "Assigned" : "Unassigned") : ticket.assigned_technician)</td></tr>
                         }
-                        else
-                        {
-                            <div class="empty-state">
-                                <i class="bi bi-ticket-detailed"></i>
-                                <h3>No tickets yet</h3>
-                                <p>New support tickets will appear here.</p>
-                            </div>
-                        }
+                    </tbody>
+                </table>
             </div>
-        </div>
-    </div>
+        }
+        else
+        {
+            <div class="prototype-empty-state"><i class="bi bi-inbox"></i><strong>No recent tickets</strong><span>New support requests will appear here.</span></div>
+        }
+    </section>
 </div>
 
 @section Scripts {

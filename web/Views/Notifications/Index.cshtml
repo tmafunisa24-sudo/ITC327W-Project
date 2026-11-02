@@ -6,23 +6,23 @@
     var unreadCount = notifications.Count(n => !n.is_read);
 }
 
-<div class="container-fluid px-0">
-    <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+<div class="container-fluid px-0 notifications-page">
+    <header class="service-page-hero">
         <div>
+            <span class="service-page-kicker">INBOX · @unreadCount UNREAD</span>
             <h1>Notifications</h1>
-            <p class="text-muted mb-0">A single place for ticket updates, assignment alerts, admin events, and asset activity.</p>
+            <p>Ticket updates and account messages.</p>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-            <span class="badge bg-primary py-2 px-3">Unread: @unreadCount</span>
             <form asp-action="MarkAllAsRead" method="post" class="d-inline">
-                <button type="submit" class="btn btn-outline-secondary">Mark all as read</button>
+                <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-check2-all me-2"></i>Mark all as read</button>
             </form>
         </div>
-    </div>
+    </header>
 
     @if (!notifications.Any())
     {
-        <div class="card p-5 text-center">
+        <div class="card-custom notification-empty-state">
             <i class="bi bi-bell-slash fs-1 text-muted"></i>
             <h2 class="h5 mt-3">No new notifications</h2>
             <p class="text-muted">You are all caught up. Check back later for ticket updates, assignment alerts, and administrative messages.</p>
@@ -32,7 +32,7 @@
     {
         <div class="row g-4">
             <div class="col-12">
-                <div class="notification-list card p-0">
+                <div class="notification-list card-custom p-0">
                     @foreach (var notification in notifications)
                     {
                         var itemClass = notification.is_read ? "notification-item read" : "notification-item unread";

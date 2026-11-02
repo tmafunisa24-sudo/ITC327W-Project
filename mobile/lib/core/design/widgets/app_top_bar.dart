@@ -1,4 +1,3 @@
-// Summary: Provides the standard top navigation bar for authenticated screens.
 // lib/core/design/widgets/app_top_bar.dart
 
 import 'package:flutter/material.dart';

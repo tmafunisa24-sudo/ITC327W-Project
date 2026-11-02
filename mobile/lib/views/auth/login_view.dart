@@ -1,4 +1,3 @@
-// Summary: Displays the login form and manages user sign-in interactions.
 // lib/views/auth/login_view.dart
 
 import 'package:flutter/material.dart';
@@ -13,8 +12,7 @@ import '../../core/design/widgets/app_text_field.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import 'widgets/auth_widgets.dart';
 // ========================================================
-/// Login screen. Validates the form, then calls [AuthViewModel.login].
-/// Navigation after sign-in is handled by the router, not here.
+
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 

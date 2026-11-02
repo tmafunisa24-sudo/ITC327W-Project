@@ -1,10 +1,8 @@
-// Summary: Defines the notification data model and its properties.
-// Summary: Models an individual notification, including read state and JSON conversion.
 // lib/models/notification.dart
 
 class Notification {
   final String id;
-  final String userId;
+  final String? userId;
   final String title;
   final String message;
   final String type;
@@ -14,7 +12,7 @@ class Notification {
 
   const Notification({
     required this.id,
-    required this.userId,
+    this.userId,
     required this.title,
     required this.message,
     this.type = 'general',
@@ -26,14 +24,14 @@ class Notification {
   factory Notification.fromJson(Map<String, dynamic> json) {
     return Notification(
       id: json['id'] as String,
-      userId: json['user_id'] as String,
+      userId: (json['userId'] ?? json['user_id']) as String?,
       title: json['title'] as String? ?? '',
       message: json['message'] as String? ?? '',
       type: json['type'] as String? ?? 'general',
       link: json['link'] as String?,
-      isRead: json['is_read'] as bool? ?? false,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+      isRead: (json['isRead'] ?? json['is_read']) as bool? ?? false,
+      createdAt: (json['createdAt'] ?? json['created_at']) != null
+          ? DateTime.parse((json['createdAt'] ?? json['created_at']) as String)
           : null,
     );
   }
@@ -41,7 +39,7 @@ class Notification {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'user_id': userId,
+      if (userId != null) 'user_id': userId,
       'title': title,
       'message': message,
       'type': type,

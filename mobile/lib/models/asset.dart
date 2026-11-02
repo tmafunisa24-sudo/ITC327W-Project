@@ -1,4 +1,3 @@
-// Summary: Models an IT asset and converts asset records between JSON and Dart objects.
 // lib/models/asset.dart
 
 class Asset {

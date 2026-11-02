@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServiceHub_IT.DTOs;
-using ServiceHub_IT.Models;
 using ServiceHub_IT.Services;
 
 namespace ServiceHub_IT.Controllers;
@@ -10,12 +9,10 @@ namespace ServiceHub_IT.Controllers;
 public class TechnicianController : Controller
 {
     private readonly TicketService _ticketService;
-    private readonly AssetService _assetService;
 
-    public TechnicianController(TicketService ticketService, AssetService assetService)
+    public TechnicianController(TicketService ticketService)
     {
         _ticketService = ticketService;
-        _assetService = assetService;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -24,13 +21,10 @@ public class TechnicianController : Controller
         var email = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? string.Empty;
         var profileId = Guid.TryParse(User.FindFirst("profile_id")?.Value, out var parsedProfileId) ? parsedProfileId : Guid.Empty;
         var tickets = (await _ticketService.GetTechnicianTicketsAsync(profileId, email, accessToken, cancellationToken)).ToList();
-        var assets = (await _assetService.GetAssetsAsync(new AssetSearchViewModel(), cancellationToken, accessToken)).ToList();
-        var assignedAssets = assets.Where(a => string.Equals(a.assigned_employee, email, StringComparison.OrdinalIgnoreCase)).ToList();
 
         var model = new TechnicianDashboardViewModel
         {
             Tickets = tickets,
-            Assets = assignedAssets,
             CompletedCount = tickets.Count(t => string.Equals(t.status, "Resolved", StringComparison.OrdinalIgnoreCase) || string.Equals(t.status, "Closed", StringComparison.OrdinalIgnoreCase)),
             DueSoonCount = tickets.Count(t => !string.Equals(t.status, "Resolved", StringComparison.OrdinalIgnoreCase) && !string.Equals(t.status, "Closed", StringComparison.OrdinalIgnoreCase))
         };

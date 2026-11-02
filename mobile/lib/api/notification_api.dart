@@ -1,4 +1,3 @@
-// Summary: Calls notification endpoints to retrieve notifications and update read status.
 // lib/api/notification_api.dart
 
 import 'package:dio/dio.dart';
@@ -19,12 +18,29 @@ class NotificationApi {
     if (code == 200) {
       final data = response.data;
       if (data is List) {
-        return data
-            .whereType<Map<String, dynamic>>()
-            .map(Notification.fromJson)
-            .toList();
+        return data.asMap().entries.map((entry) {
+          if (entry.value is! Map) {
+            throw ApiException(
+              'Invalid notification at index ${entry.key}: expected a JSON object.',
+              statusCode: code,
+            );
+          }
+          try {
+            return Notification.fromJson(
+              Map<String, dynamic>.from(entry.value as Map),
+            );
+          } catch (error) {
+            throw ApiException(
+              'Unable to parse notification at index ${entry.key}: $error',
+              statusCode: code,
+            );
+          }
+        }).toList();
       }
-      return const [];
+      throw ApiException(
+        'Invalid notification list response: expected a JSON array.',
+        statusCode: code,
+      );
     }
 
     throw ApiException(

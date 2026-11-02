@@ -1,4 +1,3 @@
-// Summary: Provides reusable card and section-card containers with shared styling.
 // lib/core/design/widgets/app_card.dart
 
 import 'package:flutter/material.dart';
