@@ -31,11 +31,19 @@
         .report-summary {
             color: #475569;
         }
+        @@media print {
+            .print-toolbar { display: none !important; }
+            body { padding: 0; }
+        }
     </style>
 </head>
 <body>
     <div class="container py-4 report-container">
-        <h2 class="mb-3 report-title">@reportType Report</h2>
+        <div class="d-flex justify-content-between align-items-center mb-3 print-toolbar">
+            <h2 class="mb-0 report-title">@reportType Report</h2>
+            <button type="button" class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
+        </div>
+        <h2 class="mb-3 report-title d-none d-print-block">@reportType Report</h2>
         <p class="report-summary">Printable report generated for the selected date range.</p>
         <div class="table-responsive">
             <table class="table table-bordered">

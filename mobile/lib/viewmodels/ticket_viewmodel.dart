@@ -1,4 +1,3 @@
-// Summary: Manages ticket data, loading state, and ticket updates for the UI.
 // lib/viewmodels/ticket_viewmodel.dart
 
 import 'package:flutter/foundation.dart';
@@ -8,7 +7,7 @@ import '../services/ticket_service.dart';
 class TicketViewModel extends ChangeNotifier {
   final TicketService _service;
   TicketViewModel([TicketService? service])
-      : _service = service ?? TicketService();
+    : _service = service ?? TicketService();
 
   List<Ticket> _tickets = [];
   bool _isLoading = false;
@@ -27,18 +26,22 @@ class TicketViewModel extends ChangeNotifier {
   int get totalCount => _tickets.length;
 
   int get activeCount => _tickets
-      .where((t) =>
-          !_equalsIgnoreCase(t.status, 'Resolved') &&
-          !_equalsIgnoreCase(t.status, 'Closed'))
+      .where(
+        (t) =>
+            !_equalsIgnoreCase(t.status, 'Resolved') &&
+            !_equalsIgnoreCase(t.status, 'Closed'),
+      )
       .length;
 
   int get resolvedCount =>
       _tickets.where((t) => _equalsIgnoreCase(t.status, 'Resolved')).length;
 
   int get unassignedCount => _tickets
-      .where((t) =>
-          t.assignedTechnician == null ||
-          t.assignedTechnician!.trim().isEmpty)
+      .where(
+        (t) =>
+            t.assignedTechnician == null ||
+            t.assignedTechnician!.trim().isEmpty,
+      )
       .length;
 
   // Detail state
@@ -70,9 +73,10 @@ class TicketViewModel extends ChangeNotifier {
         priority: _priorityFilter,
       );
       _error = null;
-    } catch (e) {
+    } catch (e, stackTrace) {
       _error = e.toString();
       _tickets = [];
+      debugPrint('Ticket list load failed: $e\n$stackTrace');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -124,115 +128,117 @@ class TicketViewModel extends ChangeNotifier {
   }
 
   /// Update the currently-loaded ticket's status.
-/// On success, refreshes the current ticket + the list.
-Future<bool> updateStatus({
-  required String ticketId,
-  required String status,
-  String? assignedTechnician,
-  String? comment,
-  DateTime? dueDate,
-}) async {
-  _isUpdating = true;
-  _updateError = null;
-  notifyListeners();
+  /// On success, refreshes the current ticket + the list.
+  Future<bool> updateStatus({
+    required String ticketId,
+    required String status,
+    String? assignedTechnicianId,
+    bool assignmentSubmitted = false,
+    String? comment,
+    DateTime? dueDate,
+  }) async {
+    _isUpdating = true;
+    _updateError = null;
+    notifyListeners();
 
-  try {
-    final updated = await _service.updateStatus(
-      ticketId: ticketId,
-      status: status,
-      assignedTechnician: assignedTechnician,
-      comment: comment,
-      dueDate: dueDate,
-    );
+    try {
+      final updated = await _service.updateStatus(
+        ticketId: ticketId,
+        status: status,
+        assignedTechnicianId: assignedTechnicianId,
+        assignmentSubmitted: assignmentSubmitted,
+        comment: comment,
+        dueDate: dueDate,
+      );
 
-    // Update in-memory detail view
-    _currentTicket = updated;
+      // Update in-memory detail view
+      _currentTicket = updated;
 
-    // Also update the ticket in the list (so the list reflects the change)
-    final idx = _tickets.indexWhere((t) => t.id == updated.id);
-    if (idx >= 0) {
-      final copy = List<Ticket>.from(_tickets);
-      copy[idx] = updated;
-      _tickets = copy;
+      // Also update the ticket in the list (so the list reflects the change)
+      final idx = _tickets.indexWhere((t) => t.id == updated.id);
+      if (idx >= 0) {
+        final copy = List<Ticket>.from(_tickets);
+        copy[idx] = updated;
+        _tickets = copy;
+      }
+
+      _isUpdating = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _updateError = e.toString();
+      _isUpdating = false;
+      notifyListeners();
+      return false;
     }
-
-    _isUpdating = false;
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _updateError = e.toString();
-    _isUpdating = false;
-    notifyListeners();
-    return false;
   }
-}
 
-/// Client selects payment method for a ticket.
-Future<bool> setPaymentMethod({
-  required String ticketId,
-  required String paymentMethod,
-}) async {
-  _isUpdating = true;
-  _updateError = null;
-  notifyListeners();
+  /// Client selects payment method for a ticket.
+  Future<bool> setPaymentMethod({
+    required String ticketId,
+    required String paymentMethod,
+  }) async {
+    _isUpdating = true;
+    _updateError = null;
+    notifyListeners();
 
-  try {
-    final updated = await _service.setPaymentMethod(
-      ticketId: ticketId,
-      paymentMethod: paymentMethod,
-    );
+    try {
+      final updated = await _service.setPaymentMethod(
+        ticketId: ticketId,
+        paymentMethod: paymentMethod,
+      );
 
-    _currentTicket = updated;
-    final idx = _tickets.indexWhere((t) => t.id == updated.id);
-    if (idx >= 0) {
-      final copy = List<Ticket>.from(_tickets);
-      copy[idx] = updated;
-      _tickets = copy;
+      _currentTicket = updated;
+      final idx = _tickets.indexWhere((t) => t.id == updated.id);
+      if (idx >= 0) {
+        final copy = List<Ticket>.from(_tickets);
+        copy[idx] = updated;
+        _tickets = copy;
+      }
+
+      _isUpdating = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _updateError = e.toString();
+      _isUpdating = false;
+      notifyListeners();
+      return false;
     }
-
-    _isUpdating = false;
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _updateError = e.toString();
-    _isUpdating = false;
-    notifyListeners();
-    return false;
   }
-}
 
-/// Admin confirms payment for a ticket.
-Future<bool> confirmPayment(String ticketId) async {
-  _isUpdating = true;
-  _updateError = null;
-  notifyListeners();
+  /// Admin confirms payment for a ticket.
+  Future<bool> confirmPayment(String ticketId) async {
+    _isUpdating = true;
+    _updateError = null;
+    notifyListeners();
 
-  try {
-    final updated = await _service.confirmPayment(ticketId);
+    try {
+      final updated = await _service.confirmPayment(ticketId);
 
-    _currentTicket = updated;
-    final idx = _tickets.indexWhere((t) => t.id == updated.id);
-    if (idx >= 0) {
-      final copy = List<Ticket>.from(_tickets);
-      copy[idx] = updated;
-      _tickets = copy;
+      _currentTicket = updated;
+      final idx = _tickets.indexWhere((t) => t.id == updated.id);
+      if (idx >= 0) {
+        final copy = List<Ticket>.from(_tickets);
+        copy[idx] = updated;
+        _tickets = copy;
+      }
+
+      _isUpdating = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _updateError = e.toString();
+      _isUpdating = false;
+      notifyListeners();
+      return false;
     }
-
-    _isUpdating = false;
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _updateError = e.toString();
-    _isUpdating = false;
-    notifyListeners();
-    return false;
   }
-}
 
-void clearUpdateError() {
-  _updateError = null;
-  notifyListeners();
-}
+  void clearUpdateError() {
+    _updateError = null;
+    notifyListeners();
+  }
 
   // ── Helpers ──
 

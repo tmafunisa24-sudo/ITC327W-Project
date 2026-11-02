@@ -22,51 +22,52 @@
         }
 
         <aside class="sidebar">
-            <div class="sidebar-brand">
-                <div class="brand-mark">S</div>
-                <div>
-                    <h4 class="mb-0">ServiceHub IT</h4>
-                    <small>ITSM & Asset Platform</small>
-                </div>
-            </div>
+            <div class="sidebar-logo sidebar-brand-lockup"><img class="sidebar-brand-mark" src="~/images/click-laptop-phone-logo.png.jpg" asp-append-version="true" alt="ServiceHub IT logo" /><span class="sidebar-brand-copy"><strong>ServiceHub IT</strong><small>ITSM &amp; Asset Platform</small></span></div>
 
             <ul class="nav nav-pills flex-column gap-1 mt-2">
                 @if (role == "Admin")
                 {
-                    <li class="nav-item"><a class="nav-link @(currentController == "Admin" ? "active" : "")" asp-controller="Admin" asp-action="Index"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Admin" && currentAction == "Index" ? "active" : "")" asp-controller="Admin" asp-action="Index"><i class="bi bi-grid me-2"></i>Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link @(currentController == "Tickets" ? "active" : "")" asp-controller="Tickets" asp-action="Index"><i class="bi bi-ticket-detailed me-2"></i>Tickets</a></li>
                     <li class="nav-item"><a class="nav-link @(currentController == "Admin" && currentAction == "Users" ? "active" : "")" asp-controller="Admin" asp-action="Users"><i class="bi bi-people me-2"></i>Users</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Admin" && currentAction == "Technicians" ? "active" : "")" asp-controller="Admin" asp-action="Technicians"><i class="bi bi-person-gear me-2"></i>Technicians</a></li>
                     <li class="nav-item"><a class="nav-link @(currentController == "Reports" ? "active" : "")" asp-controller="Reports" asp-action="Index"><i class="bi bi-bar-chart-line me-2"></i>Reports</a></li>
                     <li class="nav-item"><a class="nav-link @(currentController == "Notifications" ? "active" : "")" asp-controller="Notifications" asp-action="Index"><i class="bi bi-bell me-2"></i>Notifications</a></li>
-                    <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Privacy"><i class="bi bi-person-circle me-2"></i>Privacy</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Home" && currentAction == "Profile" ? "active" : "")" asp-controller="Home" asp-action="Profile"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Home" && currentAction == "Privacy" ? "active" : "")" asp-controller="Home" asp-action="Privacy"><i class="bi bi-shield-lock me-2"></i>Privacy</a></li>
                 }
                 else if (role == "Technician")
                 {
-                    <li class="nav-item"><a class="nav-link @(currentController == "Technician" ? "active" : "")" asp-controller="Technician" asp-action="Index"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link @(currentController == "Tickets" ? "active" : "")" asp-controller="Tickets" asp-action="Index"><i class="bi bi-ticket-detailed me-2"></i>My Assigned Tickets</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Technician" ? "active" : "")" asp-controller="Technician" asp-action="Index"><i class="bi bi-grid me-2"></i>Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Tickets" ? "active" : "")" asp-controller="Tickets" asp-action="Index"><i class="bi bi-ticket-detailed me-2"></i>Tickets</a></li>
                     <li class="nav-item"><a class="nav-link @(currentController == "Notifications" ? "active" : "")" asp-controller="Notifications" asp-action="Index"><i class="bi bi-bell me-2"></i>Notifications</a></li>
-                    <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Privacy"><i class="bi bi-person-circle me-2"></i>Privacy</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Home" && currentAction == "Profile" ? "active" : "")" asp-controller="Home" asp-action="Profile"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Home" && currentAction == "Privacy" ? "active" : "")" asp-controller="Home" asp-action="Privacy"><i class="bi bi-shield-lock me-2"></i>Privacy</a></li>
                 }
                 else
                 {
-                    <li class="nav-item"><a class="nav-link @(currentController == "Employee" ? "active" : "")" asp-controller="Employee" asp-action="Index"><i class="bi bi-house me-2"></i>Home</a></li>
-                    <li class="nav-item"><a class="nav-link @(currentController == "Tickets" && currentAction == "Create" ? "active" : "")" asp-controller="Tickets" asp-action="Create"><i class="bi bi-device-ssd me-2"></i>Devices</a></li>
-                    <li class="nav-item"><a class="nav-link @(currentController == "Tickets" && currentAction != "Create" ? "active" : "")" asp-controller="Tickets" asp-action="Index"><i class="bi bi-ticket-detailed me-2"></i>My Repair Requests</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Employee" && currentAction == "Index" ? "active" : "")" asp-controller="Employee" asp-action="Index"><i class="bi bi-grid me-2"></i>Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Tickets" ? "active" : "")" asp-controller="Tickets" asp-action="Index"><i class="bi bi-ticket-detailed me-2"></i>Tickets</a></li>
                     <li class="nav-item"><a class="nav-link @(currentController == "Notifications" ? "active" : "")" asp-controller="Notifications" asp-action="Index"><i class="bi bi-bell me-2"></i>Notifications</a></li>
-                    <li class="nav-item"><a class="nav-link @(currentController == "Employee" && currentAction == "ClientEnquiry" ? "active" : "")" asp-controller="Employee" asp-action="ClientEnquiry"><i class="bi bi-life-preserver me-2"></i>Client Enquiry</a></li>
-                    <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Privacy"><i class="bi bi-person-circle me-2"></i>Privacy</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Home" && currentAction == "Profile" ? "active" : "")" asp-controller="Home" asp-action="Profile"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
+                    <li class="nav-item"><a class="nav-link @(currentController == "Home" && currentAction == "Privacy" ? "active" : "")" asp-controller="Home" asp-action="Privacy"><i class="bi bi-shield-lock me-2"></i>Privacy</a></li>
                 }
             </ul>
+            <div class="sidebar-footer">
+                <span class="sidebar-footer-dot"></span>
+                <span><small>Service workspace</small><strong>Ticket operations</strong></span>
+                <i class="bi bi-shield-check"></i>
+            </div>
         </aside>
 
         <div class="content-panel">
             <nav class="topbar">
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span class="topbar-badge"><i class="bi bi-shield-check"></i> Premium Ops</span>
-                    <span class="topbar-title">Service Operations Center</span>
-                    <span class="topbar-pill"><i class="bi bi-circle-fill me-2 text-success"></i>Live</span>
+                <div class="topbar-left topbar-heading">
+                    <span class="badge-premium">Premium Ops</span>
+                    <h1 class="topbar-title">Service Operations Center</h1>
                 </div>
-                <div class="d-flex align-items-center gap-3 position-relative flex-wrap">
+                <div class="topbar-right topbar-actions position-relative">
+                    <span class="service-live-badge"><i></i>Live</span>
                     @if (User?.Identity?.IsAuthenticated == true)
                     {
                         <div class="dropdown notification-dropdown">
@@ -97,7 +98,7 @@
                             </div>
                         </div>
                     }
-                    <div class="topbar-pill profile-pill"><i class="bi bi-person-circle me-2"></i>@role</div>
+                    <span class="topbar-pill profile-pill role-badge badge-role"><i class="bi bi-shield-check"></i>@role</span>
                     @if (User?.Identity?.IsAuthenticated == true)
                     {
                         <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
@@ -108,6 +109,7 @@
                     {
                         <a class="btn btn-outline-primary btn-sm topbar-btn" asp-controller="Auth" asp-action="Login">Sign In</a>
                     }
+                    <span class="topbar-profile-icon" title="Profile" aria-hidden="true"><i class="bi bi-person-circle"></i></span>
                 </div>
             </nav>
 

@@ -1,4 +1,3 @@
-// Summary: Defines dashboard response data, including recent tickets and top technicians.
 // lib/models/dtos/dashboard_response.dart
 
 import 'dashboard_metrics.dart';

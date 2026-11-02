@@ -40,6 +40,7 @@ public class UpdateTicketStatusViewModel
     public bool AssignmentSubmitted { get; set; }
     public string? Comment { get; set; }
     public DateTime? DueDate { get; set; }
+    public string? ScreenshotUrl { get; set; }
 }
 
 public class PaymentMethodViewModel

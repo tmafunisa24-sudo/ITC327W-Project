@@ -21,8 +21,7 @@
         </div>
         <div class="btn-group">
             <a asp-action="Export" asp-route-type="excel" asp-route-reportType="@reportType" asp-route-startDate="@ViewBag.StartDate" asp-route-endDate="@ViewBag.EndDate" class="btn btn-outline-success">Export Excel</a>
-            <a asp-action="Export" asp-route-type="csv" asp-route-reportType="@reportType" asp-route-startDate="@ViewBag.StartDate" asp-route-endDate="@ViewBag.EndDate" class="btn btn-outline-primary">Export CSV</a>
-            <a asp-action="Print" asp-route-reportType="@reportType" asp-route-startDate="@ViewBag.StartDate" asp-route-endDate="@ViewBag.EndDate" class="btn btn-outline-secondary">Print PDF</a>
+            <a asp-action="Print" asp-route-reportType="@reportType" asp-route-startDate="@ViewBag.StartDate" asp-route-endDate="@ViewBag.EndDate" class="btn btn-outline-secondary">Print / Save as PDF</a>
         </div>
     </div>
 

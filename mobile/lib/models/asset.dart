@@ -1,4 +1,3 @@
-//lib/models/asset.dart
 
 class Asset {
   final String? id;

@@ -34,11 +34,10 @@ public sealed class ServiceCatalogApiController : ControllerBase
     {
         try
         {
-            // Don't pass the user's Supabase token — it expires.
-            // The anon key is sufficient for this read-only endpoint,
-            // and the user is already authenticated via the ASP.NET cookie.
             var items = await _supabaseService.GetActiveServiceCatalogAsync(
-            null, cancellationToken);
+                User.FindFirst("supabase_access_token")?.Value,
+                cancellationToken,
+                throwOnError: true);
 
             return Ok(items);
         }
@@ -47,6 +46,13 @@ public sealed class ServiceCatalogApiController : ControllerBase
             return StatusCode(401, new ApiErrorDto
             {
                 Error = "Your session has expired. Please log in again."
+            });
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        {
+            return StatusCode((int)ex.StatusCode.Value, new ApiErrorDto
+            {
+                Error = "Your session cannot access the service catalog. Please log in again."
             });
         }
         catch (Exception ex)

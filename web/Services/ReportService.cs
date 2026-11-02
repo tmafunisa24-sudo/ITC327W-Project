@@ -1,5 +1,6 @@
 using System.Text;
 using System.Net.Http.Headers;
+using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
@@ -23,48 +24,72 @@ public class ReportService
 
     public Task<MemoryStream> GenerateExcelAsync(string reportType, IEnumerable<Dictionary<string, object?>> rows, CancellationToken cancellationToken = default)
     {
+        var reportRows = rows?.ToList() ?? new List<Dictionary<string, object?>>();
+        var columns = reportRows
+            .SelectMany(row => row.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var stream = new MemoryStream();
-        var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, true);
-
-        var workbookPart = document.AddWorkbookPart();
-        workbookPart.Workbook = new Workbook();
-
-        var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
-        worksheetPart.Worksheet = new Worksheet(new SheetData());
-
-        var sheets = workbookPart.Workbook.AppendChild(new Sheets());
-        sheets.AppendChild(new Sheet { Id = workbookPart.GetIdOfPart(worksheetPart), SheetId = 1, Name = reportType });
-
-        var sheetData = worksheetPart.Worksheet.GetFirstChild<SheetData>();
-        if (sheetData is null)
+        using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, true))
         {
-            sheetData = new SheetData();
-            worksheetPart.Worksheet.AppendChild(sheetData);
-        }
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new Workbook();
 
-        var headerRow = new Row();
-        var columns = rows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-        foreach (var column in columns)
-        {
-            headerRow.AppendChild(new Cell(new InlineString(new Text(column))) { DataType = CellValues.InlineString });
-        }
-        sheetData.AppendChild(headerRow);
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            var sheetData = new SheetData();
+            worksheetPart.Worksheet = new Worksheet(sheetData);
 
-        foreach (var row in rows)
-        {
-            var dataRow = new Row();
+            var sheets = workbookPart.Workbook.AppendChild(new Sheets());
+            sheets.AppendChild(new Sheet
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = GetWorksheetName(reportType)
+            });
+
+            var headerRow = new Row();
             foreach (var column in columns)
             {
-                var cellValue = row.TryGetValue(column, out var value) ? value?.ToString() ?? string.Empty : string.Empty;
-                dataRow.AppendChild(new Cell(new InlineString(new Text(cellValue))) { DataType = CellValues.InlineString });
+                headerRow.AppendChild(CreateInlineTextCell(column));
             }
-            sheetData.AppendChild(dataRow);
+            sheetData.AppendChild(headerRow);
+
+            foreach (var row in reportRows)
+            {
+                var dataRow = new Row();
+                foreach (var column in columns)
+                {
+                    var value = row.FirstOrDefault(pair =>
+                        string.Equals(pair.Key, column, StringComparison.OrdinalIgnoreCase)).Value;
+                    var cellValue = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+                    dataRow.AppendChild(CreateInlineTextCell(cellValue));
+                }
+                sheetData.AppendChild(dataRow);
+            }
+
+            worksheetPart.Worksheet.Save();
+            workbookPart.Workbook.Save();
         }
 
-        workbookPart.Workbook.Save();
-        document.Dispose();
         stream.Position = 0;
         return Task.FromResult(stream);
+    }
+
+    private static Cell CreateInlineTextCell(string value) => new(
+        new InlineString(new Text(value) { Space = SpaceProcessingModeValues.Preserve }))
+    {
+        DataType = CellValues.InlineString
+    };
+
+    private static string GetWorksheetName(string? reportType)
+    {
+        var name = string.IsNullOrWhiteSpace(reportType) ? "Report" : reportType.Trim();
+        foreach (var invalidCharacter in new[] { '\\', '/', '*', '?', ':', '[', ']' })
+        {
+            name = name.Replace(invalidCharacter, '_');
+        }
+
+        return name.Length > 31 ? name[..31] : name;
     }
 
     public string BuildCsv(IEnumerable<Dictionary<string, object?>> rows)
@@ -91,17 +116,18 @@ public class ReportService
     string reportType,
     DateTime? startDate,
     DateTime? endDate,
+    string? accessToken = null,
     CancellationToken cancellationToken = default)
 {
     if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey))
     {
-        return new List<Dictionary<string, object?>>();
+        throw new InvalidOperationException("Supabase is not configured for report generation.");
     }
 
     var table = reportType.ToLowerInvariant() switch
     {
         "assets" => "assets",
-        "clients" => "profiles",
+        "clients" or "users" => "profiles",
         "tickets" => "tickets",
         "departments" => "departments",
         "maintenance" => "maintenance",
@@ -120,10 +146,18 @@ public class ReportService
     }
 
     var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/{table}?{string.Join('&', query)}";
+    var bearerToken = !string.IsNullOrWhiteSpace(accessToken)
+        ? accessToken
+        : _settings.ServiceRoleKey;
+    if (string.IsNullOrWhiteSpace(bearerToken))
+    {
+        throw new InvalidOperationException("An authenticated Supabase token or Service Role Key is required to generate reports.");
+    }
+
     using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
     request.Headers.Clear();
     request.Headers.Add("apikey", _settings.ApiKey);
-    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
     request.Headers.Accept.Add(
         new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -132,7 +166,10 @@ public class ReportService
     {
         _logger.LogWarning("Supabase report fetch failed for {Type}. Status: {Status}",
             reportType, response.StatusCode);
-        return new List<Dictionary<string, object?>>();
+        throw new HttpRequestException(
+            $"Supabase report fetch failed with status {(int)response.StatusCode}.",
+            null,
+            response.StatusCode);
     }
 
     var payload = await response.Content.ReadAsStringAsync(cancellationToken);

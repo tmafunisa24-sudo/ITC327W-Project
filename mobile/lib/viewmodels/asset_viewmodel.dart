@@ -1,4 +1,5 @@
-//lib/viewmodels/asset_viewmodel.dart
+
+// lib/viewmodels/asset_viewmodel.dart
 
 import 'package:flutter/foundation.dart';
 import '../models/asset.dart';

@@ -13,15 +13,13 @@
     var assignedTechnicianName = assignedTechnicianProfile is not null
         ? (!string.IsNullOrWhiteSpace(assignedTechnicianProfile.FullName) ? assignedTechnicianProfile.FullName : assignedTechnicianProfile.Email)
         : (string.IsNullOrWhiteSpace(Model.assigned_technician) ? "Unassigned" : Model.assigned_technician);
-    var selectedTechnicianId = Model.technician_id
-        ?? technicians.FirstOrDefault(technician => string.Equals(technician.Email, Model.assigned_technician, StringComparison.OrdinalIgnoreCase))?.Id;
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/tickets.css" asp-append-version="true" />
 }
 
-<div class="ticket-page ticket-detail-page">
+<div class="ticket-page ticket-detail-page ticket-reference-page">
     <div class="ticket-header">
         <div class="ticket-title-area">
             <span class="ticket-header-badge"><i class="bi bi-card-list"></i> Ticket Details</span>
@@ -185,23 +183,7 @@
                                         <select id="adminTicketStatus" name="Status" class="form-select ticket-select">
                                             @foreach (var status in new[] { "Open", "Assigned", "In Progress", "Resolved", "Closed" })
                                             {
-                                                <option value="@status" selected="@string.Equals(Model.status, status, StringComparison.OrdinalIgnoreCase)">@status</option>
-                                            }
-                                        </select>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label" for="assignedTechnicianId">Assign Technician</label>
-                                        <input type="hidden" name="AssignmentSubmitted" value="true" />
-                                        <select id="assignedTechnicianId" name="AssignedTechnicianId" class="form-select">
-                                            <option value="" selected="@(!selectedTechnicianId.HasValue)">Unassigned</option>
-                                            @foreach (var technician in technicians.OrderBy(technician => technician.FullName).ThenBy(technician => technician.Email))
-                                            {
-                                                if (technician.Id != Guid.Empty && !string.IsNullOrWhiteSpace(technician.Email))
-                                                {
-                                                    <option value="@technician.Id" selected="@(selectedTechnicianId == technician.Id)">
-                                                        @(string.IsNullOrWhiteSpace(technician.FullName) ? technician.Email : technician.FullName)
-                                                    </option>
-                                                }
+                                                <option value="@status" selected="@(string.Equals(Model.status, status, StringComparison.OrdinalIgnoreCase))">@status</option>
                                             }
                                         </select>
                                     </div>
@@ -210,23 +192,14 @@
                                         <input type="date" id="adminDueDate" name="DueDate" class="form-control ticket-date-input" value="@(Model.due_date?.ToString("yyyy-MM-dd"))" />
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label" for="adminTicketComment">Comment</label>
-                                        <textarea id="adminTicketComment" name="Comment" class="form-control" rows="3" placeholder="Add an update"></textarea>
+                                        <label class="form-label" for="adminTicketComment">Comments</label>
+                                        <textarea id="adminTicketComment" name="Comment" class="form-control" rows="3" placeholder="Add a comment"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="adminScreenshotUrl">Screenshot URL</label>
+                                        <input type="url" id="adminScreenshotUrl" name="ScreenshotUrl" class="form-control" value="@Model.screenshot_url" placeholder="https://..." />
                                     </div>
                                     <button type="submit" class="btn btn-assign w-100">Save Ticket</button>
-                                </form>
-                            </div>
-                        </div>
-                        <div class="ticket-action-card mb-3">
-                            <div class="card-body p-4">
-                                <h5 class="mb-3">Update Due Date</h5>
-                                <form asp-controller="Tickets" asp-action="UpdateDueDate" asp-route-id="@Model.id" method="post">
-                                    @Html.AntiForgeryToken()
-                                    <div class="mb-3">
-                                        <label class="form-label" for="dueDate">Due Date</label>
-                                        <input type="date" id="dueDate" name="dueDate" class="form-control ticket-date-input" value="@(Model.due_date?.ToString("yyyy-MM-dd"))" />
-                                    </div>
-                                    <button type="submit" class="btn btn-assign w-100">Save Due Date</button>
                                 </form>
                             </div>
                         </div>
@@ -242,14 +215,8 @@
                                 <div class="mb-3">
                                     <label class="form-label">Status</label>
                                     <select name="Status" class="form-select ticket-select">
-                                        @if (!isTechnicianOnly)
-                                        {
-                                            <option value="Open" selected="@(string.Equals(Model.status, "Open", StringComparison.OrdinalIgnoreCase))">Open</option>
-                                            <option value="Assigned" selected="@(string.Equals(Model.status, "Assigned", StringComparison.OrdinalIgnoreCase))">Assigned</option>
-                                        }
-                                        <option value="In Progress" selected="@(string.Equals(Model.status, "In Progress", StringComparison.OrdinalIgnoreCase))">In Progress</option>
+                                        <option value="In Progress" selected="@(string.Equals(Model.status, "In Progress", StringComparison.OrdinalIgnoreCase) || string.Equals(Model.status, "Assigned", StringComparison.OrdinalIgnoreCase))">In Progress</option>
                                         <option value="Resolved" selected="@(string.Equals(Model.status, "Resolved", StringComparison.OrdinalIgnoreCase))">Resolved</option>
-                                        <option value="Closed" selected="@(string.Equals(Model.status, "Closed", StringComparison.OrdinalIgnoreCase))">Closed</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
@@ -259,6 +226,10 @@
                                 <div class="mb-3">
                                     <label class="form-label">Comment</label>
                                     <textarea name="Comment" class="form-control" rows="3" placeholder="Add progress notes"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="technicianScreenshotUrl">Screenshot URL</label>
+                                    <input type="url" id="technicianScreenshotUrl" name="ScreenshotUrl" class="form-control" value="@Model.screenshot_url" placeholder="https://..." />
                                 </div>
                                 <button type="submit" class="btn btn-assign w-100">Update Ticket</button>
                             </form>

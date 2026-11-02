@@ -385,6 +385,71 @@ public sealed class SupabaseService : ISupabaseService
         return string.Empty;
     }
 
+    public async Task<Profile?> GetProfileByAuthUserIdAsync(
+        Guid authUserId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (authUserId == Guid.Empty || string.IsNullOrWhiteSpace(accessToken) || !IsConfigured)
+        {
+            return null;
+        }
+
+        var authId = Uri.EscapeDataString(authUserId.ToString());
+        var profile = await GetProfileForAuthLookupAsync(
+            $"rest/v1/profiles?user_id=eq.{authId}&select=*",
+            accessToken,
+            cancellationToken);
+
+        if (profile is not null)
+        {
+            if (profile.UserId != authUserId)
+            {
+                throw new InvalidOperationException("The profile returned for the authenticated user did not match the Auth UUID.");
+            }
+
+            return profile;
+        }
+
+        // Older profiles may use the Supabase Auth UUID as their primary id.
+        profile = await GetProfileForAuthLookupAsync(
+            $"rest/v1/profiles?id=eq.{authId}&select=*",
+            accessToken,
+            cancellationToken);
+
+        return profile?.Id == authUserId ? profile : null;
+    }
+
+    private async Task<Profile?> GetProfileForAuthLookupAsync(
+        string requestUri,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Supabase Auth profile lookup failed. Status: {StatusCode}", response.StatusCode);
+            throw new HttpRequestException("Supabase profile lookup failed.", null, response.StatusCode);
+        }
+
+        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+        var profiles = JsonSerializer.Deserialize<List<Profile>>(
+            payload,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<Profile>();
+
+        if (profiles.Count > 1)
+        {
+            throw new InvalidOperationException("The authenticated user maps to multiple profiles.");
+        }
+
+        return profiles.SingleOrDefault();
+    }
+
     public async Task<Profile?> GetProfileByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email) || !IsConfigured)
@@ -470,10 +535,15 @@ public sealed class SupabaseService : ISupabaseService
 
     public async Task<IEnumerable<Profile>> GetAllProfilesAsync(
         string? accessToken,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool throwOnError = false)
     {
         if (!IsConfigured)
         {
+            if (throwOnError)
+            {
+                throw new InvalidOperationException("Supabase is not configured for profile reads.");
+            }
             return Array.Empty<Profile>();
         }
 
@@ -489,6 +559,11 @@ public sealed class SupabaseService : ISupabaseService
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase profile list request failed. Status: {StatusCode}", response.StatusCode);
+            if (throwOnError)
+            {
+                throw new HttpRequestException(
+                    "Supabase rejected the profile list request.", null, response.StatusCode);
+            }
             return Array.Empty<Profile>();
         }
 
@@ -537,11 +612,18 @@ public sealed class SupabaseService : ISupabaseService
         return profiles ?? new List<Profile>();
     }
 
-    public async Task<IEnumerable<ServiceCatalogItem>> GetActiveServiceCatalogAsync(string? accessToken = null, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<ServiceCatalogItem>> GetActiveServiceCatalogAsync(
+        string? accessToken = null,
+        CancellationToken cancellationToken = default,
+        bool throwOnError = false)
     {
         if (!IsConfigured)
         {
             _logger.LogWarning("Service catalog lookup skipped because Supabase is not configured.");
+            if (throwOnError)
+            {
+                throw new InvalidOperationException("Supabase is not configured for service catalog reads.");
+            }
             return Array.Empty<ServiceCatalogItem>();
         }
 
@@ -565,6 +647,11 @@ public sealed class SupabaseService : ISupabaseService
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase service catalog request failed. Status: {StatusCode}", response.StatusCode);
+            if (throwOnError)
+            {
+                throw new HttpRequestException(
+                    "Supabase rejected the service catalog request.", null, response.StatusCode);
+            }
             return Array.Empty<ServiceCatalogItem>();
         }
 
@@ -621,7 +708,15 @@ public sealed class SupabaseService : ISupabaseService
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<bool> UpdateProfileAsync(Profile profile, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateProfileAsync(Profile profile, CancellationToken cancellationToken = default)
+    {
+        return UpdateProfileAsync(profile, accessToken: null, cancellationToken);
+    }
+
+    public async Task<bool> UpdateProfileAsync(
+        Profile profile,
+        string? accessToken,
+        CancellationToken cancellationToken = default)
     {
         if (profile is null || profile.Id == Guid.Empty || !IsConfigured)
         {
@@ -657,7 +752,8 @@ public sealed class SupabaseService : ISupabaseService
         request.Headers.Clear();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Add("apikey", _settings.ApiKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer", string.IsNullOrWhiteSpace(accessToken) ? WriteBearerToken : accessToken);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Headers.Add("Prefer", "return=representation");
 
@@ -710,7 +806,14 @@ public sealed class SupabaseService : ISupabaseService
             return false;
         }
 
-        using var response = await _httpClient.DeleteAsync($"rest/v1/profiles?id=eq.{Uri.EscapeDataString(id.ToString())}", cancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"rest/v1/profiles?id=eq.{Uri.EscapeDataString(id.ToString())}");
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -895,6 +998,39 @@ public sealed class SupabaseService : ISupabaseService
         }
 
         return true;
+    }
+
+    public async Task<bool> NotificationExistsAsync(
+        Guid userId,
+        string title,
+        string link,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(link) || !IsConfigured)
+        {
+            return false;
+        }
+
+        var query = $"rest/v1/notifications?user_id=eq.{Uri.EscapeDataString(userId.ToString())}" +
+                    $"&title=eq.{Uri.EscapeDataString(title)}&link=eq.{Uri.EscapeDataString(link)}&select=id&limit=1";
+        using var request = new HttpRequestMessage(HttpMethod.Get, query);
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ReadBearerToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Supabase notification lookup failed with status {(int)response.StatusCode}: {body}",
+                null,
+                response.StatusCode);
+        }
+
+        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var document = JsonDocument.Parse(payload);
+        return document.RootElement.ValueKind == JsonValueKind.Array && document.RootElement.GetArrayLength() > 0;
     }
 
     public async Task<bool> MarkNotificationAsReadAsync(Guid id, Guid profileId, CancellationToken cancellationToken = default)

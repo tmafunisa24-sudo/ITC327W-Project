@@ -69,7 +69,10 @@ public class AuthController : Controller
                 return View(model);
             }
 
-            var profile = await _supabaseService.GetProfileByIdAsync(userId.Value, signInResult.AccessToken, cancellationToken);
+            var profile = await _supabaseService.GetProfileByAuthUserIdAsync(
+                userId.Value,
+                signInResult.AccessToken,
+                cancellationToken);
             if (profile is null)
             {
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -78,11 +81,44 @@ public class AuthController : Controller
                 return View(model);
             }
 
+            if (string.Equals(profile.Role, "Client", StringComparison.OrdinalIgnoreCase))
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                Response.Cookies.Delete("ServiceHubITAuth");
+                ModelState.AddModelError(
+                    string.Empty,
+                    "Client accounts must use the ServiceHub IT mobile app. Web access is restricted to Administrators and Technicians.");
+                return View(model);
+            }
+
+            if (!string.Equals(profile.Role, "Admin", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(profile.Role, "Technician", StringComparison.OrdinalIgnoreCase))
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                Response.Cookies.Delete("ServiceHubITAuth");
+                ModelState.AddModelError(string.Empty, "Web access is restricted to Administrators and Technicians.");
+                return View(model);
+            }
+
             if (string.Equals(profile.Status, "Disabled", StringComparison.OrdinalIgnoreCase))
             {
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 Response.Cookies.Delete("ServiceHubITAuth");
                 TempData["ErrorMessage"] = "Your account has been disabled. Please contact an administrator.";
+                return View(model);
+            }
+
+            if (string.Equals(profile.Status, "Pending", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(profile.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(string.Empty, "This account is awaiting administrator approval.");
+                return View(model);
+            }
+
+            if (!string.Equals(profile.Status, "Active", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(profile.Status, "Approved", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(string.Empty, "Your account is not active. Please contact an administrator.");
                 return View(model);
             }
 
@@ -286,7 +322,13 @@ public class AuthController : Controller
         if (userId is null)
             return RedirectToAction(nameof(Login));
 
-        await _supabaseService.MarkProfileConfirmedAsync(userId.Value, cancellationToken);
+        var profile = await _supabaseService.GetProfileByAuthUserIdAsync(userId.Value, accessToken, cancellationToken);
+        if (profile is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        await _supabaseService.MarkProfileConfirmedAsync(profile.Id, cancellationToken);
 
         TempData["AccessToken"] = accessToken;
         return RedirectToAction(nameof(SelectRole));
@@ -317,6 +359,13 @@ public class AuthController : Controller
         if (userId is null)
             return RedirectToAction(nameof(Login));
 
+        var profile = await _supabaseService.GetProfileByAuthUserIdAsync(userId.Value, accessToken, cancellationToken);
+        if (profile is null)
+        {
+            TempData["ErrorMessage"] = "Your account profile could not be found. Please contact support.";
+            return RedirectToAction(nameof(Login));
+        }
+
         var chosen = roleChoice?.Trim().ToLowerInvariant();
         if (chosen != "client" && chosen != "technician")
         {
@@ -327,13 +376,13 @@ public class AuthController : Controller
 
         if (chosen == "client")
         {
-            await _supabaseService.SetRoleAndStatusAsync(userId.Value, "Client", "Active", true, cancellationToken);
+            await _supabaseService.SetRoleAndStatusAsync(profile.Id, "Client", "Active", true, cancellationToken);
             TempData["SuccessMessage"] = "Welcome! Your account is ready.";
             return RedirectToAction(nameof(Login));
         }
         else
         {
-            await _supabaseService.SetRoleAndStatusAsync(userId.Value, "Technician", "Awaiting Approval", true, cancellationToken);
+            await _supabaseService.SetRoleAndStatusAsync(profile.Id, "Technician", "Awaiting Approval", true, cancellationToken);
             TempData["InfoMessage"] = "Your technician account is pending approval. You will be notified by email once approved.";
             return RedirectToAction(nameof(Login));
         }

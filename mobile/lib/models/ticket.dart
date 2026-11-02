@@ -1,4 +1,3 @@
-// Summary: Models a service ticket, including its details, status, and JSON conversion.
 // lib/models/ticket.dart
 
 class Ticket {
@@ -9,6 +8,7 @@ class Ticket {
   final String? problemCategory;
   final String? problemType;
   final int? serviceCatalogId;
+  final String? technicianId;
   final String title;
   final String description;
   final String requester;
@@ -34,6 +34,7 @@ class Ticket {
     this.problemCategory,
     this.problemType,
     this.serviceCatalogId,
+    this.technicianId,
     required this.title,
     required this.description,
     required this.requester,
@@ -54,37 +55,85 @@ class Ticket {
 
   factory Ticket.fromJson(Map<String, dynamic> json) {
     return Ticket(
-      id: json['id'] as String?,
-      ticketNumber: json['ticket_number'] as String?,
-      employeeId: json['employee_id'] as String?,
-      deviceType: json['device_type'] as String?,
-      problemCategory: json['problem_category'] as String?,
-      problemType: json['problem_type'] as String?,
-      serviceCatalogId: json['service_catalog_id'] as int?,
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      requester: json['requester'] as String? ?? '',
-      priority: json['priority'] as String? ?? 'Medium',
-      status: json['status'] as String? ?? 'Open',
-      assignedTechnician: json['assigned_technician'] as String?,
-      category: json['category'] as String? ?? '',
-      paymentMethod: json['payment_method'] as String?,
-      paymentStatus: json['payment_status'] as String? ?? 'Pending',
-      screenshotUrl: json['screenshot_url'] as String?,
-      imageUrl: json['image_url'] as String?,
-      comments: json['comments'] as String?,
-      dueDate: json['due_date'] != null
-          ? DateTime.parse(json['due_date'] as String)
-          : null,
-      closedAt: json['closed_at'] != null
-          ? DateTime.parse(json['closed_at'] as String)
-          : null,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : null,
+      id: _string(json, 'id'),
+      ticketNumber: _string(json, 'ticket_number', 'ticketNumber'),
+      employeeId: _string(json, 'employee_id', 'employeeId'),
+      deviceType: _string(json, 'device_type', 'deviceType'),
+      problemCategory: _string(json, 'problem_category', 'problemCategory'),
+      problemType: _string(json, 'problem_type', 'problemType'),
+      serviceCatalogId: _integer(
+        json,
+        'service_catalog_id',
+        'serviceCatalogId',
+      ),
+      technicianId: _string(
+        json,
+        'technician_id',
+        'technicianId',
+        'assignedTechnicianId',
+      ),
+      title: _string(json, 'title') ?? '',
+      description: _string(json, 'description') ?? '',
+      requester: _string(json, 'requester') ?? '',
+      priority: _string(json, 'priority') ?? 'Medium',
+      status: _string(json, 'status') ?? 'Open',
+      assignedTechnician: _string(
+        json,
+        'assigned_technician',
+        'assignedTechnician',
+      ),
+      category: _string(json, 'category') ?? '',
+      paymentMethod: _string(json, 'payment_method', 'paymentMethod'),
+      paymentStatus:
+          _string(json, 'payment_status', 'paymentStatus') ?? 'Pending',
+      screenshotUrl: _string(json, 'screenshot_url', 'screenshotUrl'),
+      imageUrl: _string(json, 'image_url', 'imageUrl'),
+      comments: _string(json, 'comments'),
+      dueDate: _date(json, 'due_date', 'dueDate'),
+      closedAt: _date(json, 'closed_at', 'closedAt'),
+      createdAt: _date(json, 'created_at', 'createdAt'),
+      updatedAt: _date(json, 'updated_at', 'updatedAt'),
+    );
+  }
+
+  static dynamic _value(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      if (json.containsKey(key)) return json[key];
+    }
+    return null;
+  }
+
+  static String? _string(
+    Map<String, dynamic> json,
+    String key1, [
+    String? key2,
+    String? key3,
+  ]) {
+    final keys = [key1, ?key2, ?key3];
+    final value = _value(json, keys);
+    if (value == null) return null;
+    if (value is String) return value;
+    throw FormatException(
+      'Expected "$key1" to be a string, got ${value.runtimeType}.',
+    );
+  }
+
+  static int? _integer(Map<String, dynamic> json, String key1, String key2) {
+    final value = _value(json, [key1, key2]);
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    throw FormatException(
+      'Expected "$key1" to be a number, got ${value.runtimeType}.',
+    );
+  }
+
+  static DateTime? _date(Map<String, dynamic> json, String key1, String key2) {
+    final value = _value(json, [key1, key2]);
+    if (value == null) return null;
+    if (value is String) return DateTime.parse(value);
+    throw FormatException(
+      'Expected "$key1" to be a date string, got ${value.runtimeType}.',
     );
   }
 
@@ -97,6 +146,7 @@ class Ticket {
       'problem_category': problemCategory,
       'problem_type': problemType,
       'service_catalog_id': serviceCatalogId,
+      'technician_id': technicianId,
       'title': title,
       'description': description,
       'requester': requester,
@@ -124,6 +174,7 @@ class Ticket {
     String? problemCategory,
     String? problemType,
     int? serviceCatalogId,
+    String? technicianId,
     String? title,
     String? description,
     String? requester,
@@ -149,6 +200,7 @@ class Ticket {
       problemCategory: problemCategory ?? this.problemCategory,
       problemType: problemType ?? this.problemType,
       serviceCatalogId: serviceCatalogId ?? this.serviceCatalogId,
+      technicianId: technicianId ?? this.technicianId,
       title: title ?? this.title,
       description: description ?? this.description,
       requester: requester ?? this.requester,
@@ -179,6 +231,7 @@ class Ticket {
           other.problemCategory == problemCategory &&
           other.problemType == problemType &&
           other.serviceCatalogId == serviceCatalogId &&
+          other.technicianId == technicianId &&
           other.title == title &&
           other.description == description &&
           other.requester == requester &&
@@ -198,28 +251,29 @@ class Ticket {
 
   @override
   int get hashCode => Object.hashAll([
-        id,
-        ticketNumber,
-        employeeId,
-        deviceType,
-        problemCategory,
-        problemType,
-        serviceCatalogId,
-        title,
-        description,
-        requester,
-        priority,
-        status,
-        assignedTechnician,
-        category,
-        paymentMethod,
-        paymentStatus,
-        screenshotUrl,
-        imageUrl,
-        comments,
-        dueDate,
-        closedAt,
-        createdAt,
-        updatedAt,
-      ]);
+    id,
+    ticketNumber,
+    employeeId,
+    deviceType,
+    problemCategory,
+    problemType,
+    serviceCatalogId,
+    technicianId,
+    title,
+    description,
+    requester,
+    priority,
+    status,
+    assignedTechnician,
+    category,
+    paymentMethod,
+    paymentStatus,
+    screenshotUrl,
+    imageUrl,
+    comments,
+    dueDate,
+    closedAt,
+    createdAt,
+    updatedAt,
+  ]);
 }

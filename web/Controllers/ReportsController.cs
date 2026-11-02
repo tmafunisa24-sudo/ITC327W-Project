@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using ServiceHub_IT.Models;
 using System.Text;
@@ -11,14 +10,10 @@ namespace ServiceHub_IT.Controllers;
 public class ReportsController : Controller
 {
     private readonly ReportService _reportService;
-    private readonly HttpClient _httpClient;
-    private readonly SupabaseSettings _settings;
 
-    public ReportsController(ReportService reportService, HttpClient httpClient, Microsoft.Extensions.Options.IOptions<SupabaseSettings> options)
+    public ReportsController(ReportService reportService)
     {
         _reportService = reportService;
-        _httpClient = httpClient;
-        _settings = options.Value;
     }
 
     [HttpGet]
@@ -31,7 +26,12 @@ public class ReportsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Generate(ReportFilterViewModel model, CancellationToken cancellationToken)
     {
-        var rows = await FetchRowsAsync(model.ReportType, model.StartDate, model.EndDate, cancellationToken);
+        var rows = await _reportService.FetchRowsAsync(
+            model.ReportType,
+            model.StartDate,
+            model.EndDate,
+            User.FindFirst("supabase_access_token")?.Value,
+            cancellationToken);
         ViewBag.Rows = rows;
         ViewBag.ReportType = model.ReportType;
         ViewBag.StartDate = model.StartDate;
@@ -42,7 +42,12 @@ public class ReportsController : Controller
     [HttpGet]
     public async Task<IActionResult> Export(string type, string reportType, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
     {
-        var rows = await FetchRowsAsync(reportType, startDate, endDate, cancellationToken);
+        var rows = await _reportService.FetchRowsAsync(
+            reportType,
+            startDate,
+            endDate,
+            User.FindFirst("supabase_access_token")?.Value,
+            cancellationToken);
 
         if (type == "excel")
         {
@@ -62,55 +67,15 @@ public class ReportsController : Controller
     [HttpGet]
     public async Task<IActionResult> Print(string reportType, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
     {
-        var rows = await FetchRowsAsync(reportType, startDate, endDate, cancellationToken);
+        var rows = await _reportService.FetchRowsAsync(
+            reportType,
+            startDate,
+            endDate,
+            User.FindFirst("supabase_access_token")?.Value,
+            cancellationToken);
         ViewBag.Rows = rows;
         ViewBag.ReportType = reportType;
         return View("Print", rows);
     }
 
-    private async Task<List<Dictionary<string, object?>>> FetchRowsAsync(string reportType, DateTime? startDate, DateTime? endDate, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey))
-        {
-            return new List<Dictionary<string, object?>>();
-        }
-
-        var table = reportType.ToLowerInvariant() switch
-        {
-            "assets" => "assets",
-            "clients" => "profiles",
-            "tickets" => "tickets",
-            "departments" => "departments",
-            "maintenance" => "maintenance",
-            "technician performance" => "tickets",
-            _ => "assets"
-        };
-
-        var query = new List<string> { "select=*" };
-        if (startDate is not null)
-        {
-            query.Add($"created_at=gte.{startDate:yyyy-MM-dd}");
-        }
-        if (endDate is not null)
-        {
-            query.Add($"created_at=lte.{endDate:yyyy-MM-dd}");
-        }
-
-        var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/{table}?{string.Join('&', query)}";
-        using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
-        request.Headers.Clear();
-        request.Headers.Add("apikey", _settings.ApiKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
-        request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            return new List<Dictionary<string, object?>>();
-        }
-
-        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
-        var data = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, System.Text.Json.JsonElement>>>(payload, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<Dictionary<string, System.Text.Json.JsonElement>>();
-        return data.Select(item => item.ToDictionary(kvp => kvp.Key, kvp => (object?)(kvp.Value.ValueKind == System.Text.Json.JsonValueKind.String ? kvp.Value.GetString() : kvp.Value.ToString()))).ToList();
-    }
 }

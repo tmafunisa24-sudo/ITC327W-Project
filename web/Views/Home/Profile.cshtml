@@ -1,0 +1,72 @@
+@model ServiceHub_IT.Models.Profile
+@{
+    ViewData["Title"] = "Profile";
+    Layout = "_Layout";
+    var displayName = string.IsNullOrWhiteSpace(Model.FullName) ? Model.Email : Model.FullName;
+    var initials = string.Join("", displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+}
+
+<div class="container-fluid px-0 account-profile-page">
+    <header class="service-page-hero">
+        <div>
+            <span class="service-page-kicker">ACCOUNT</span>
+            <h1>Profile</h1>
+            <p>Your account details and access information.</p>
+        </div>
+        <a asp-controller="Home" asp-action="Privacy" class="btn btn-outline-primary profile-privacy-link">
+            <i class="bi bi-shield-lock me-2"></i>Privacy
+        </a>
+    </header>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="alert alert-success">@success</div>
+    }
+
+    <div class="account-profile-grid">
+        <section class="card-custom account-identity-card" aria-label="Account identity">
+            @if (!string.IsNullOrWhiteSpace(Model.ProfileImage))
+            {
+                <img class="account-avatar account-avatar-image" src="@Model.ProfileImage" alt="Profile image for @displayName" />
+            }
+            else
+            {
+                <div class="account-avatar">@(string.IsNullOrWhiteSpace(initials) ? "U" : initials)</div>
+            }
+            <h2>@(string.IsNullOrWhiteSpace(displayName) ? "Account" : displayName)</h2>
+            <p>@Model.Email</p>
+            <span class="prototype-pill pill-blue">@Model.Role</span>
+            <a asp-action="Edit" class="btn btn-primary mt-3">Edit Profile</a>
+        </section>
+
+        <section class="card-custom account-details-card" aria-labelledby="personalInformationHeading">
+            <span class="service-page-kicker">PERSONAL INFORMATION</span>
+            <h2 id="personalInformationHeading">Contact details</h2>
+            <dl class="account-details-list">
+                @if (!string.IsNullOrWhiteSpace(Model.FullName))
+                {
+                    <div><dt>Full name</dt><dd>@Model.FullName</dd></div>
+                }
+                <div><dt>Email address</dt><dd>@(string.IsNullOrWhiteSpace(Model.Email) ? "Not available" : Model.Email)</dd></div>
+                @if (!string.IsNullOrWhiteSpace(Model.Phone))
+                {
+                    <div><dt>Phone number</dt><dd>@Model.Phone</dd></div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Position))
+                {
+                    <div><dt>Position</dt><dd>@Model.Position</dd></div>
+                }
+            </dl>
+        </section>
+
+        <section class="card-custom account-details-card" aria-labelledby="accountStatusHeading">
+            <span class="service-page-kicker">ACCOUNT ACCESS</span>
+            <h2 id="accountStatusHeading">Status and verification</h2>
+            <dl class="account-details-list">
+                <div><dt>Role</dt><dd>@Model.Role</dd></div>
+                <div><dt>Status</dt><dd><span class="prototype-pill @(string.Equals(Model.Status, "Active", StringComparison.OrdinalIgnoreCase) || string.Equals(Model.Status, "Approved", StringComparison.OrdinalIgnoreCase) ? "pill-success" : string.Equals(Model.Status, "Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(Model.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase) ? "pill-warning" : "pill-neutral")">@Model.Status</span></dd></div>
+                <div><dt>Email verified</dt><dd><span class="prototype-pill @(Model.EmailVerified ? "pill-success" : "pill-warning")">@(Model.EmailVerified ? "Verified" : "Not verified")</span></dd></div>
+            </dl>
+        </section>
+    </div>
+</div>

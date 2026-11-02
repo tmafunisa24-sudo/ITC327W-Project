@@ -1,15 +1,16 @@
-// Summary: Defines the data sent when updating a ticket's status and related details.
 // lib/models/dtos/update_ticket_status.dart
 
 class UpdateTicketStatus {
   final String status;
-  final String? assignedTechnician;
+  final String? assignedTechnicianId;
+  final bool assignmentSubmitted;
   final String? comment;
   final DateTime? dueDate;
 
   const UpdateTicketStatus({
     required this.status,
-    this.assignedTechnician,
+    this.assignedTechnicianId,
+    this.assignmentSubmitted = false,
     this.comment,
     this.dueDate,
   });
@@ -17,8 +18,9 @@ class UpdateTicketStatus {
   Map<String, dynamic> toJson() {
     return {
       'status': status,
-      if (assignedTechnician != null && assignedTechnician!.trim().isNotEmpty)
-        'assignedTechnician': assignedTechnician!.trim(),
+      if (assignedTechnicianId != null && assignedTechnicianId!.trim().isNotEmpty)
+        'assignedTechnicianId': assignedTechnicianId!.trim(),
+      'assignmentSubmitted': assignmentSubmitted,
       if (comment != null && comment!.trim().isNotEmpty)
         'comment': comment!.trim(),
       if (dueDate != null) 'dueDate': dueDate!.toIso8601String(),

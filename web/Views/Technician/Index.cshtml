@@ -2,42 +2,32 @@
 @{
     ViewData["Title"] = "Technician Dashboard";
     Layout = "_Layout";
+    var resolvedCount = Model.Tickets.Count(ticket => string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "Closed", StringComparison.OrdinalIgnoreCase));
+    var pendingCount = Model.Tickets.Count(ticket => string.Equals(ticket.status, "Pending", StringComparison.OrdinalIgnoreCase));
+    var activeCount = Model.Tickets.Count(ticket => string.Equals(ticket.status, "In Progress", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "Assigned", StringComparison.OrdinalIgnoreCase));
 }
 
-<div class="dashboard-page container-fluid">
-    <div class="dashboard-header">
+<div class="dashboard-page container-fluid technician-dashboard-page">
+    <header class="dashboard-header prototype-hero technician-dashboard-hero">
         <div>
-            <span class="hero-badge"><i class="bi bi-tools"></i> Technician</span>
+            <div class="hero-kickers"><span class="hero-admin-pill">TECHNICIAN</span><span class="hero-tier-label">SERVICE WORKSPACE</span></div>
             <h1>Technician Dashboard</h1>
-            <p>See your assigned work, due dates, and assets in one refined IT service workspace.</p>
+            <p>Review assigned tickets and their current status.</p>
         </div>
-        <div class="topbar-pill"><i class="bi bi-calendar2-check me-2"></i>Service queue</div>
-    </div>
+        <div class="telemetry-card technician-queue-context"><span class="telemetry-icon"><i class="bi bi-tools"></i></span><span class="telemetry-copy"><small>MY QUEUE</small><strong>@Model.Tickets.Count assigned tickets</strong></span></div>
+    </header>
 
-    <div class="dashboard-stats">
-        <div class="summary-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@Model.CompletedCount</div>
-                    <div class="stat-label">Completed Tasks</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-            </div>
-        </div>
-        <div class="summary-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@Model.DueSoonCount</div>
-                    <div class="stat-label">Pending Tasks</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-            </div>
-        </div>
-    </div>
+    <div class="admin-stat-section-label">My ticket queue</div>
+    <section class="row g-3 admin-stat-grid technician-stat-grid" aria-label="Technician ticket overview">
+        <div class="col-md-3"><article class="card admin-stat-card metric-blue"><span class="admin-stat-icon"><i class="bi bi-ticket-detailed"></i></span><span class="stat-label">ASSIGNED</span><strong class="stat-value">@Model.Tickets.Count</strong><small>Tickets in your queue</small></article></div>
+        <div class="col-md-3"><article class="card admin-stat-card metric-amber"><span class="admin-stat-icon"><i class="bi bi-hourglass-split"></i></span><span class="stat-label">PENDING</span><strong class="stat-value">@pendingCount</strong><small>Awaiting work</small></article></div>
+        <div class="col-md-3"><article class="card admin-stat-card metric-cyan"><span class="admin-stat-icon"><i class="bi bi-arrow-repeat"></i></span><span class="stat-label">ACTIVE</span><strong class="stat-value">@activeCount</strong><small>Currently in progress</small></article></div>
+        <div class="col-md-3"><article class="card admin-stat-card metric-green"><span class="admin-stat-icon"><i class="bi bi-check2-circle"></i></span><span class="stat-label">RESOLVED</span><strong class="stat-value">@resolvedCount</strong><small>Completed tickets</small></article></div>
+    </section>
 
     <div class="row g-4">
-        <div class="col-xl-7">
-            <div class="table-card">
+        <div class="col-xl-12">
+            <div class="table-card supporting-card technician-data-card">
                 <div class="p-4">
                     <h5 class="mb-3">Assigned Tickets</h5>
                     @if (Model.Tickets.Any())
@@ -56,7 +46,7 @@
                                     {
                                         <tr>
                                             <td><a asp-controller="Tickets" asp-action="Details" asp-route-id="@ticket.id">@ticket.title</a></td>
-                                            <td><span class="badge bg-secondary">@ticket.status</span></td>
+                                            <td><span class="prototype-pill @(string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "Closed", StringComparison.OrdinalIgnoreCase) ? "pill-success" : string.Equals(ticket.status, "Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "Open", StringComparison.OrdinalIgnoreCase) ? "pill-warning" : string.Equals(ticket.status, "Assigned", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "In Progress", StringComparison.OrdinalIgnoreCase) ? "pill-blue" : "pill-neutral")">@ticket.status</span></td>
                                             <td>@(ticket.due_date?.ToString("dd MMM yyyy") ?? "Not set")</td>
                                         </tr>
                                     }
@@ -76,29 +66,5 @@
             </div>
         </div>
 
-        <div class="col-xl-5">
-            <div class="table-card">
-                <div class="p-4">
-                    <h5 class="mb-3">Assigned Assets</h5>
-                    @if (Model.Assets.Any())
-                    {
-                        <ul class="list-group list-group-flush">
-                            @foreach (var asset in Model.Assets)
-                            {
-                                <li class="list-group-item">@asset.asset_name (@asset.status)</li>
-                            }
-                        </ul>
-                    }
-                    else
-                    {
-                        <div class="empty-state">
-                            <i class="bi bi-hdd-stack"></i>
-                            <h3>No assets assigned</h3>
-                            <p>Assigned assets will appear here once available.</p>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
     </div>
 </div>

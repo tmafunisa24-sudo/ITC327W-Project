@@ -1,4 +1,3 @@
-// Summary: Hosts the authenticated app shell and its bottom navigation tabs.
 // lib/views/home/shell_scaffold.dart
 
 import 'package:flutter/material.dart';

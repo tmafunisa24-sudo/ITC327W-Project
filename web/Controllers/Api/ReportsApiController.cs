@@ -147,7 +147,11 @@ public sealed class ReportsApiController : ControllerBase
         CancellationToken cancellationToken)
     {
         var rows = await _reportService.FetchRowsAsync(
-            reportType, startDate, endDate, cancellationToken);
+            reportType,
+            startDate,
+            endDate,
+            User.FindFirst("supabase_access_token")?.Value,
+            cancellationToken);
         return rows;
     }
 }

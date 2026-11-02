@@ -1,4 +1,3 @@
-// Summary: Defines the recent-notifications response bundle and its JSON parsing.
 // lib/models/dtos/notification_bundle.dart
 
 import '../../models/notification.dart';
@@ -14,14 +13,24 @@ class NotificationBundle {
 
   factory NotificationBundle.fromJson(Map<String, dynamic> json) {
     final list = json['notifications'];
+    if (list is! List) {
+      throw const FormatException(
+        'Invalid notification bundle: expected a notifications array.',
+      );
+    }
+
     return NotificationBundle(
       unreadCount: json['unreadCount'] as int? ?? 0,
-      notifications: list is List
-          ? list
-              .whereType<Map<String, dynamic>>()
-              .map(Notification.fromJson)
-              .toList()
-          : const [],
+      notifications: list.asMap().entries.map((entry) {
+        if (entry.value is! Map) {
+          throw FormatException(
+            'Invalid notification at index ${entry.key}: expected a JSON object.',
+          );
+        }
+        return Notification.fromJson(
+          Map<String, dynamic>.from(entry.value as Map),
+        );
+      }).toList(),
     );
   }
 }

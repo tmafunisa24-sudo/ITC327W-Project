@@ -21,10 +21,18 @@ public class AssetService
         _imageStorageService = imageStorageService;
     }
 
-    public async Task<IReadOnlyList<Asset>> GetAssetsAsync(AssetSearchViewModel search, CancellationToken cancellationToken = default, string? accessToken = null)
+    public async Task<IReadOnlyList<Asset>> GetAssetsAsync(
+        AssetSearchViewModel search,
+        CancellationToken cancellationToken = default,
+        string? accessToken = null,
+        bool throwOnError = false)
     {
         if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey))
         {
+            if (throwOnError)
+            {
+                throw new InvalidOperationException("Supabase is not configured for asset reads.");
+            }
             return Array.Empty<Asset>();
         }
 
@@ -54,6 +62,11 @@ public class AssetService
             using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                if (throwOnError)
+                {
+                    throw new HttpRequestException(
+                        "Supabase rejected the asset list request.", null, response.StatusCode);
+                }
                 return Array.Empty<Asset>();
             }
 
@@ -66,23 +79,46 @@ public class AssetService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Unable to load assets from Supabase.");
+            if (throwOnError)
+            {
+                throw;
+            }
             return Array.Empty<Asset>();
         }
     }
 
-    public async Task<Asset?> GetAssetAsync(string id, CancellationToken cancellationToken = default)
+    public async Task<Asset?> GetAssetAsync(
+        string id,
+        CancellationToken cancellationToken = default,
+        bool throwOnError = false,
+        string? accessToken = null)
     {
+        if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey))
+        {
+            if (throwOnError)
+            {
+                throw new InvalidOperationException("Supabase is not configured for asset reads.");
+            }
+            return null;
+        }
+
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"{_settings.Url.TrimEnd('/')}/rest/v1/assets?id=eq.{id}&select=*");
             request.Headers.Clear();
             request.Headers.Add("apikey", _settings.ApiKey);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue(
+                "Bearer", string.IsNullOrWhiteSpace(accessToken) ? _settings.ApiKey : accessToken);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
             using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                if (throwOnError)
+                {
+                    throw new HttpRequestException(
+                        "Supabase rejected the asset lookup request.", null, response.StatusCode);
+                }
                 return null;
             }
 
@@ -92,6 +128,10 @@ public class AssetService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Unable to load asset from Supabase.");
+            if (throwOnError)
+            {
+                throw;
+            }
             return null;
         }
     }

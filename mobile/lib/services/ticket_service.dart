@@ -1,4 +1,3 @@
-// Summary: Provides the ticket business-service layer by delegating ticket operations to the API.
 // lib/services/ticket_service.dart
 
 import '../api/ticket_api.dart';
@@ -43,14 +42,16 @@ class TicketService {
 Future<Ticket> updateStatus({
   required String ticketId,
   required String status,
-  String? assignedTechnician,
+  String? assignedTechnicianId,
+  bool assignmentSubmitted = false,
   String? comment,
   DateTime? dueDate,
 }) {
   return _api.updateStatus(
     ticketId: ticketId,
     status: status,
-    assignedTechnician: assignedTechnician,
+    assignedTechnicianId: assignedTechnicianId,
+    assignmentSubmitted: assignmentSubmitted,
     comment: comment,
     dueDate: dueDate,
   );

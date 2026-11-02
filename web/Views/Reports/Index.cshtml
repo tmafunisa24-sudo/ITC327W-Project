@@ -3,39 +3,26 @@
     ViewData["Title"] = "Reports";
 }
 
-<div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+<div class="reports-page">
+<header class="service-page-hero">
     <div>
+        <span class="service-page-kicker">ANALYTICS</span>
         <h1>Reports</h1>
-        <p class="page-note">Generate operational reports for assets, staffing, tickets, maintenance, and technician performance.</p>
+        <p class="page-note">Generate reports from available ServiceHub records.</p>
     </div>
-    <div class="topbar-pill">Reports</div>
-</div>
-
-<div class="hero-panel mb-4">
-    <div>
-        <h2 class="h3 mb-2">Reports workspace</h2>
-        <p class="mb-0">Create and preview business reports with an interface that matches the dashboard experience.</p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <span class="topbar-pill">Quick access</span>
-        <span class="topbar-pill">Export ready</span>
-    </div>
-</div>
+</header>
 
 <div class="row g-4">
     <div class="col-lg-4">
-        <div class="content-panel card card-body shadow-sm border-0 bg-white rounded-4">
-            <h5 class="mb-3">Create report</h5>
+        <div class="content-panel card-custom reports-form-card">
+            <span class="service-page-kicker">REPORT GENERATOR</span>
+            <h2 class="h4 mb-3">Create Report</h2>
             <form asp-action="Generate" method="post">
                 <div class="mb-3">
                     <label asp-for="ReportType" class="form-label">Report Type</label>
                     <select asp-for="ReportType" class="form-select">
-                        <option>Assets</option>
-                        <option>Clients</option>
                         <option>Tickets</option>
-                        <option>Departments</option>
-                        <option>Maintenance</option>
-                        <option>Technician Performance</option>
+                        <option>Users</option>
                     </select>
                 </div>
                 <div class="mb-3">
@@ -52,21 +39,18 @@
     </div>
 
     <div class="col-lg-8">
-        <div class="content-panel card card-body shadow-sm border-0 bg-white rounded-4">
+        <div class="content-panel card-custom reports-catalog-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                    <h5 class="mb-1">Available Reports</h5>
-                    <p class="page-note mb-0">Choose from prebuilt report categories for faster data delivery.</p>
+                    <span class="service-page-kicker">REPORT CATALOG</span>
+                    <h2 class="h4 mb-1">Available Reports</h2>
                 </div>
             </div>
             <ul class="list-group list-group-flush">
-                <li class="list-group-item">Assets</li>
-                <li class="list-group-item">Clients</li>
                 <li class="list-group-item">Tickets</li>
-                <li class="list-group-item">Departments</li>
-                <li class="list-group-item">Maintenance</li>
-                <li class="list-group-item">Technician Performance</li>
+                <li class="list-group-item">Users</li>
             </ul>
         </div>
     </div>
+</div>
 </div>

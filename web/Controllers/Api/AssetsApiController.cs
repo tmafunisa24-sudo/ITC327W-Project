@@ -40,8 +40,20 @@ public sealed class AssetsApiController : ControllerBase
             Status = status,
         };
 
-        var assets = await _assetService.GetAssetsAsync(search, cancellationToken);
-        return Ok(assets);
+        try
+        {
+            var assets = await _assetService.GetAssetsAsync(
+                search,
+                cancellationToken,
+                User.FindFirst("supabase_access_token")?.Value,
+                throwOnError: true);
+            return Ok(assets);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to load assets for API.");
+            return StatusCode(500, new ApiErrorDto { Error = "Unable to load assets right now." });
+        }
     }
 
     // GET /api/assets/{id}
@@ -50,12 +62,24 @@ public sealed class AssetsApiController : ControllerBase
         string id,
         CancellationToken cancellationToken)
     {
-        var asset = await _assetService.GetAssetAsync(id, cancellationToken);
-        if (asset is null)
+        try
         {
-            return NotFound(new ApiErrorDto { Error = "Asset not found." });
+            var asset = await _assetService.GetAssetAsync(
+                id,
+                cancellationToken,
+                throwOnError: true,
+                accessToken: User.FindFirst("supabase_access_token")?.Value);
+            if (asset is null)
+            {
+                return NotFound(new ApiErrorDto { Error = "Asset not found." });
+            }
+            return Ok(asset);
         }
-        return Ok(asset);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to load asset {AssetId} for API.", id);
+            return StatusCode(500, new ApiErrorDto { Error = "Unable to load the asset right now." });
+        }
     }
 
     // POST /api/assets   (multipart/form-data for file uploads)

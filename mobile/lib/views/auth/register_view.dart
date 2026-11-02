@@ -1,4 +1,3 @@
-// Summary: Displays the account-registration form and handles registration feedback.
 // lib/views/auth/register_view.dart
 
 
@@ -15,8 +14,6 @@ import '../../viewmodels/auth_viewmodel.dart';
 import 'widgets/auth_widgets.dart';
 // ========================================================
 
-/// Registration screen for new client accounts. After submit, the card
-/// switches to a confirmation message based on the view model's flags.
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
 

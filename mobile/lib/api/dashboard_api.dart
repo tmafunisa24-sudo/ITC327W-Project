@@ -1,4 +1,3 @@
-// Summary: Calls the dashboard endpoint and parses the returned dashboard data.
 // lib/api/dashboard_api.dart
 
 import 'package:dio/dio.dart';

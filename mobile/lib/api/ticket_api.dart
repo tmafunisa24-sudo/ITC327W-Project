@@ -1,10 +1,10 @@
-// Summary: Calls ticket endpoints to list, retrieve, create, update, and manage tickets.
 // lib/api/ticket_api.dart
 
 import 'package:dio/dio.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_exception.dart';
 import '../models/ticket.dart';
+import '../models/dtos/update_ticket_status.dart';
 import 'dart:io';
 
 class TicketApi {
@@ -19,10 +19,7 @@ class TicketApi {
   ///   - Client     → tickets they requested
   ///
   /// Returns a list of [Ticket]. Throws [ApiException] on failure.
-  Future<List<Ticket>> getTickets({
-    String? status,
-    String? priority,
-  }) async {
+  Future<List<Ticket>> getTickets({String? status, String? priority}) async {
     final queryParams = <String, dynamic>{};
     if (status != null && status.trim().isNotEmpty) {
       queryParams['status'] = status.trim();
@@ -41,12 +38,29 @@ class TicketApi {
     if (code == 200) {
       final data = response.data;
       if (data is List) {
-        return data
-            .whereType<Map<String, dynamic>>()
-            .map(Ticket.fromJson)
-            .toList();
+        return data.asMap().entries.map((entry) {
+          final item = entry.value;
+          if (item is! Map) {
+            throw ApiException(
+              'Invalid ticket at index ${entry.key}: expected a JSON object.',
+              statusCode: code,
+            );
+          }
+
+          try {
+            return Ticket.fromJson(Map<String, dynamic>.from(item));
+          } catch (error) {
+            throw ApiException(
+              'Unable to parse ticket at index ${entry.key}: $error',
+              statusCode: code,
+            );
+          }
+        }).toList();
       }
-      return const [];
+      throw ApiException(
+        'Invalid ticket list response: expected a JSON array, received ${data.runtimeType}.',
+        statusCode: code,
+      );
     }
 
     throw ApiException(
@@ -54,6 +68,7 @@ class TicketApi {
       statusCode: code,
     );
   }
+
   /// GET /api/tickets/{id}
   ///
   /// Returns one [Ticket]. Throws [ApiException]:
@@ -77,6 +92,7 @@ class TicketApi {
       statusCode: code,
     );
   }
+
   /// POST /api/tickets
   ///
   /// Multipart form upload with optional images.
@@ -106,18 +122,18 @@ class TicketApi {
     // Attach images
     for (final image in images) {
       final filename = image.path.split(Platform.pathSeparator).last;
-      formData.files.add(MapEntry(
-        'images',
-        await MultipartFile.fromFile(image.path, filename: filename),
-      ));
+      formData.files.add(
+        MapEntry(
+          'images',
+          await MultipartFile.fromFile(image.path, filename: filename),
+        ),
+      );
     }
 
     final response = await _dio.post(
       '/api/tickets',
       data: formData,
-      options: Options(
-        contentType: 'multipart/form-data',
-      ),
+      options: Options(contentType: 'multipart/form-data'),
     );
 
     final code = response.statusCode ?? 0;
@@ -141,101 +157,94 @@ class TicketApi {
   }
 
   /// PATCH /api/tickets/{id}/status
-///
-/// Updates ticket status. Role-aware (Admin/Technician only).
-/// Throws [ApiException] on failure:
-///   400 — invalid transition
-///   401 — not authenticated
-///   403 — wrong role or not assigned
-///   404 — ticket not found
-Future<Ticket> updateStatus({
-  required String ticketId,
-  required String status,
-  String? assignedTechnician,
-  String? comment,
-  DateTime? dueDate,
-}) async {
-  final payload = <String, dynamic>{
-    'status': status,
-  };
+  ///
+  /// Updates ticket status. Role-aware (Admin/Technician only).
+  /// Throws [ApiException] on failure:
+  ///   400 — invalid transition
+  ///   401 — not authenticated
+  ///   403 — wrong role or not assigned
+  ///   404 — ticket not found
+  Future<Ticket> updateStatus({
+    required String ticketId,
+    required String status,
+    String? assignedTechnicianId,
+    bool assignmentSubmitted = false,
+    String? comment,
+    DateTime? dueDate,
+  }) async {
+    final payload = UpdateTicketStatus(
+      status: status,
+      assignedTechnicianId: assignedTechnicianId,
+      assignmentSubmitted: assignmentSubmitted,
+      comment: comment,
+      dueDate: dueDate,
+    ).toJson();
 
-  if (assignedTechnician != null && assignedTechnician.trim().isNotEmpty) {
-    payload['assignedTechnician'] = assignedTechnician.trim();
-  }
+    final response = await _dio.patch(
+      '/api/tickets/$ticketId/status',
+      data: payload,
+    );
 
-  if (comment != null && comment.trim().isNotEmpty) {
-    payload['comment'] = comment.trim();
-  }
+    final code = response.statusCode ?? 0;
 
-  if (dueDate != null) {
-    payload['dueDate'] = dueDate.toIso8601String();
-  }
-
-  final response = await _dio.patch(
-    '/api/tickets/$ticketId/status',
-    data: payload,
-  );
-
-  final code = response.statusCode ?? 0;
-
-  if (code == 200) {
-    final data = response.data;
-    if (data is Map<String, dynamic>) {
-      return Ticket.fromJson(data);
+    if (code == 200) {
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return Ticket.fromJson(data);
+      }
+      throw ApiException('Invalid response.', statusCode: code);
     }
-    throw ApiException('Invalid response.', statusCode: code);
+
+    throw ApiException(
+      _extractError(response) ?? 'Unable to update the ticket.',
+      statusCode: code,
+    );
   }
 
-  throw ApiException(
-    _extractError(response) ?? 'Unable to update the ticket.',
-    statusCode: code,
-  );
-}
+  /// PATCH /api/tickets/{id}/payment-method — client only
+  Future<Ticket> setPaymentMethod({
+    required String ticketId,
+    required String paymentMethod,
+  }) async {
+    final response = await _dio.patch(
+      '/api/tickets/$ticketId/payment-method',
+      data: {'paymentMethod': paymentMethod},
+    );
 
-/// PATCH /api/tickets/{id}/payment-method — client only
-Future<Ticket> setPaymentMethod({
-  required String ticketId,
-  required String paymentMethod,
-}) async {
-  final response = await _dio.patch(
-    '/api/tickets/$ticketId/payment-method',
-    data: {'paymentMethod': paymentMethod},
-  );
+    final code = response.statusCode ?? 0;
 
-  final code = response.statusCode ?? 0;
-
-  if (code == 200) {
-    final data = response.data;
-    if (data is Map<String, dynamic>) {
-      return Ticket.fromJson(data);
+    if (code == 200) {
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return Ticket.fromJson(data);
+      }
+      throw ApiException('Invalid response.', statusCode: code);
     }
-    throw ApiException('Invalid response.', statusCode: code);
+
+    throw ApiException(
+      _extractError(response) ?? 'Unable to save the payment method.',
+      statusCode: code,
+    );
   }
 
-  throw ApiException(
-    _extractError(response) ?? 'Unable to save the payment method.',
-    statusCode: code,
-  );
-}
+  /// POST /api/tickets/{id}/confirm-payment — admin only
+  Future<Ticket> confirmPayment(String ticketId) async {
+    final response = await _dio.post('/api/tickets/$ticketId/confirm-payment');
+    final code = response.statusCode ?? 0;
 
-/// POST /api/tickets/{id}/confirm-payment — admin only
-Future<Ticket> confirmPayment(String ticketId) async {
-  final response = await _dio.post('/api/tickets/$ticketId/confirm-payment');
-  final code = response.statusCode ?? 0;
-
-  if (code == 200) {
-    final data = response.data;
-    if (data is Map<String, dynamic>) {
-      return Ticket.fromJson(data);
+    if (code == 200) {
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return Ticket.fromJson(data);
+      }
+      throw ApiException('Invalid response.', statusCode: code);
     }
-    throw ApiException('Invalid response.', statusCode: code);
-  }
 
-  throw ApiException(
-    _extractError(response) ?? 'Unable to confirm the payment.',
-    statusCode: code,
-  );
-}
+    throw ApiException(
+      _extractError(response) ?? 'Unable to confirm the payment.',
+      statusCode: code,
+    );
+  }
 
   //===============================================================================
   String? _extractError(Response response) {

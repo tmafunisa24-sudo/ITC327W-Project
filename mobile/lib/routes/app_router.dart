@@ -1,4 +1,3 @@
-// Summary: Defines the app's route table, role-based home routing, and splash screen.
 // lib/routes/app_router.dart
 
 import 'package:flutter/material.dart';
@@ -148,7 +147,7 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/tickets/new',
+                  path: '/branch2',
                   builder: (context, state) => const CreateTicketView(),
                 ),
               ],
@@ -157,7 +156,7 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/notifications',
+                  path: '/branch3',
                   builder: (context, state) => const NotificationsView(),
                 ),
               ],

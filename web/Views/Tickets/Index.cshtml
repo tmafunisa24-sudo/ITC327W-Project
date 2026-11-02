@@ -15,28 +15,46 @@
 
         return string.IsNullOrWhiteSpace(ticket.assigned_technician) ? "Unassigned" : ticket.assigned_technician;
     }
+    string TicketNumber(ServiceHub_IT.Models.Ticket ticket)
+    {
+        if (!string.IsNullOrWhiteSpace(ticket.ticket_number))
+        {
+            return ticket.ticket_number;
+        }
+
+        if (string.IsNullOrWhiteSpace(ticket.id))
+        {
+            return "Not assigned";
+        }
+
+        if (ticket.id.StartsWith("TKT-", StringComparison.OrdinalIgnoreCase))
+        {
+            return ticket.id;
+        }
+
+        return $"TKT-{ticket.id[..Math.Min(ticket.id.Length, 8)].ToUpperInvariant()}";
+    }
     var totalTickets = Model.Count();
     var activeTickets = Model.Count(ticket => !string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase) && !string.Equals(ticket.status, "Closed", StringComparison.OrdinalIgnoreCase));
-    var resolvedTickets = Model.Count(ticket => string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase));
-    var unassignedTickets = Model.Count(ticket => !ticket.technician_id.HasValue && string.IsNullOrWhiteSpace(ticket.assigned_technician));
+    var resolvedTickets = Model.Count(ticket => string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "Closed", StringComparison.OrdinalIgnoreCase));
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/tickets.css" asp-append-version="true" />
 }
 
-<div class="ticket-page">
-    <div class="ticket-header">
-        <div class="ticket-title-area">
-            <span class="ticket-header-badge"><i class="bi bi-ticket-detailed"></i> ServiceHub IT</span>
-            <h1>@(isAdmin ? "Ticket Management" : isTechnician ? "Assigned Tickets" : "My Tickets")</h1>
-            <p>@(isAdmin ? "Review support requests and ticket progress from one professional workspace." : isTechnician ? "Review the work queue and advance assigned requests efficiently." : "Track the status and progress of your submitted support requests.")</p>
+<div class="ticket-page service-records-page">
+    <header class="hero-header service-page-hero">
+        <div class="service-page-heading">
+            <span class="service-page-kicker">SERVICE RECORDS</span>
+            <h1>Tickets</h1>
+            <p>Manage and track all support requests.</p>
         </div>
         @if (!isAdmin && !isTechnician)
         {
             <a asp-controller="Tickets" asp-action="Create" class="btn btn-primary btn-create-ticket"><i class="bi bi-plus-lg me-2"></i>Create Ticket</a>
         }
-    </div>
+    </header>
 
     <div class="ticket-alerts">
         @if (TempData["Success"] is string successMessage)
@@ -49,67 +67,52 @@
         }
     </div>
 
-    <div class="ticket-stats">
-        <div class="stat-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@totalTickets</div>
-                    <div class="stat-label">Total Tickets</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-list-task"></i></div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@activeTickets</div>
-                    <div class="stat-label">Open / Active</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-lightning-charge"></i></div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@resolvedTickets</div>
-                    <div class="stat-label">Resolved</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@unassignedTickets</div>
-                    <div class="stat-label">Unassigned</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-person-dash"></i></div>
-            </div>
-        </div>
+    <div class="service-metric-grid">
+        <article class="card-custom service-metric-card"><span class="card-title">TOTAL TICKETS</span><strong class="card-value">@totalTickets</strong><span class="service-metric-icon"><i class="bi bi-list-task"></i></span></article>
+        <article class="card-custom service-metric-card"><span class="card-title">OPEN TICKETS</span><strong class="card-value">@activeTickets</strong><span class="service-metric-icon service-icon-warning"><i class="bi bi-lightning-charge"></i></span></article>
+        <article class="card-custom service-metric-card"><span class="card-title">RESOLVED TICKETS</span><strong class="card-value">@resolvedTickets</strong><span class="service-metric-icon service-icon-success"><i class="bi bi-check2-circle"></i></span></article>
     </div>
 
-    <div class="ticket-container">
+    <div class="ticket-content-container">
         @if (Model.Any())
         {
+            <div class="card-custom ticket-table-card">
+            <div class="row g-3 align-items-end mb-3 ticket-filter-bar">
+                <div class="col-sm-6 col-lg-3">
+                    <label for="ticketStatusFilter" class="form-label card-title">Status</label>
+                    <select id="ticketStatusFilter" class="form-select">
+                        <option value="">All statuses</option>
+                        <option value="open">Open</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="in progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <label for="ticketCreatedDateFilter" class="form-label card-title">Date Created</label>
+                    <input id="ticketCreatedDateFilter" type="date" class="form-control" />
+                </div>
+            </div>
             <div class="ticket-table-wrapper">
                 <table class="ticket-table">
                     <thead>
                         <tr>
-                            <th>Ticket ID</th>
-                            <th>Ticket Number</th>
-                            <th>Device</th>
-                            <th>Problem</th>
+                            <th class="card-title">Ticket ID</th>
+                            <th class="card-title">Ticket Number</th>
+                            <th class="card-title">Device</th>
+                            <th class="card-title">Problem</th>
                             @if (isAdmin)
                             {
-                                <th>Requester</th>
+                                <th class="card-title">Requester</th>
                             }
-                            <th>Priority</th>
-                            <th>Status</th>
-                            <th>Assigned Technician</th>
-                            <th>Due Date</th>
-                            <th>Created</th>
-                            <th>Updated</th>
-                            <th>Actions</th>
+                            <th class="card-title">Priority</th>
+                            <th class="card-title">Status</th>
+                            <th class="card-title">Assigned Technician</th>
+                            <th class="card-title">Due Date</th>
+                            <th class="card-title">Created</th>
+                            <th class="card-title">Updated</th>
+                            <th class="card-title">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -118,14 +121,13 @@
                                 var priorityText = string.IsNullOrWhiteSpace(ticket.priority) ? "Medium" : ticket.priority.Trim();
                                 var statusText = string.IsNullOrWhiteSpace(ticket.status) ? "Open" : ticket.status.Trim();
                                 var statusKey = statusText.ToLowerInvariant();
-                                var statusClass = statusKey == "open" ? "status-open"
-                                    : statusKey == "assigned" ? "status-assigned"
-                                    : statusKey == "in progress" ? "status-progress"
-                                    : statusKey == "resolved" ? "status-resolved"
-                                    : statusKey == "closed" ? "status-closed"
-                                    : "status-closed";
-                            <tr>
-                                <td><span class="ticket-id">@(ticket.ticket_number ?? ticket.id)</span></td>
+                                var statusClass = statusKey == "open" ? "pill-warning"
+                                    : statusKey == "assigned" || statusKey == "in progress" ? "pill-blue"
+                                    : statusKey == "resolved" || statusKey == "closed" ? "pill-success"
+                                    : "pill-neutral";
+                            <tr data-status="@statusKey" data-created-date="@(ticket.created_at?.ToString("yyyy-MM-dd") ?? string.Empty)">
+                                <td><span class="ticket-id">@(string.IsNullOrWhiteSpace(ticket.id) ? "Not available" : ticket.id)</span></td>
+                                <td><span class="ticket-id">@TicketNumber(ticket)</span></td>
                                 <td>@(ticket.device_type ?? "Not specified")</td>
                                 <td><div class="ticket-title">@(ticket.problem_type ?? ticket.title)</div></td>
                                 @if (isAdmin)
@@ -149,7 +151,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="badge status-badge @statusClass">@statusText</span>
+                                    <span class="prototype-pill @statusClass">@statusText</span>
                                 </td>
                                 <td>
                                     @if (!ticket.technician_id.HasValue && string.IsNullOrWhiteSpace(ticket.assigned_technician))
@@ -202,6 +204,8 @@
                     </tbody>
                 </table>
             </div>
+            <p id="ticketFilterEmpty" class="text-muted text-center py-4 mb-0" hidden>No tickets match these filters.</p>
+            </div>
         }
         else
         {
@@ -213,3 +217,33 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const statusFilter = document.getElementById('ticketStatusFilter');
+            const dateFilter = document.getElementById('ticketCreatedDateFilter');
+            const rows = Array.from(document.querySelectorAll('.ticket-table tbody tr[data-status]'));
+            const emptyMessage = document.getElementById('ticketFilterEmpty');
+
+            const applyFilters = () => {
+                const status = statusFilter?.value ?? '';
+                const createdDate = dateFilter?.value ?? '';
+                let visibleCount = 0;
+
+                rows.forEach((row) => {
+                    const matchesStatus = !status || row.dataset.status === status;
+                    const matchesDate = !createdDate || row.dataset.createdDate === createdDate;
+                    const isVisible = matchesStatus && matchesDate;
+                    row.style.display = isVisible ? '' : 'none';
+                    if (isVisible) visibleCount += 1;
+                });
+
+                if (emptyMessage) emptyMessage.hidden = visibleCount !== 0;
+            };
+
+            statusFilter?.addEventListener('change', applyFilters);
+            dateFilter?.addEventListener('change', applyFilters);
+        })();
+    </script>
+}

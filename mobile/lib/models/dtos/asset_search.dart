@@ -1,4 +1,5 @@
-//lib/models/dtos/asset_search.dart
+// lib/models/dtos/asset_search.dart
+
 
 class AssetSearch {
   final String? searchTerm;

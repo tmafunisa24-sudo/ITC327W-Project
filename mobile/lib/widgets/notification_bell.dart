@@ -1,4 +1,3 @@
-// Summary: Displays the notification button with a badge showing the unread count.
 // lib/widgets/notification_bell.dart
 
 import 'package:flutter/material.dart';

@@ -59,47 +59,35 @@
     </style>
 }
 
-<div class="dashboard-page container-fluid">
-    <div class="dashboard-header">
+<div class="dashboard-page container-fluid client-dashboard-page">
+    <header class="dashboard-header prototype-hero client-dashboard-hero">
         <div>
-            <span class="hero-badge"><i class="bi bi-person-badge"></i> Client</span>
+            <div class="hero-kickers"><span class="hero-admin-pill">CLIENT</span><span class="hero-tier-label">SUPPORT WORKSPACE</span></div>
             <h1>Client Dashboard</h1>
-            <p>Click computer and accessories repair support, all in one place.</p>
+            <p>Track support requests and assigned devices.</p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             <button type="button" class="btn btn-outline-primary" id="clientLocationButton" aria-haspopup="dialog" aria-controls="clientLocationModal">
                 <i class="bi bi-geo-alt me-2"></i>Location
             </button>
-            <div class="topbar-pill"><i class="bi bi-clipboard-check me-2"></i>My workspace</div>
         </div>
-    </div>
+    </header>
 
-    <div class="dashboard-stats">
-        <div class="summary-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@Model.ResolvedCount</div>
-                    <div class="stat-label">Resolved Tickets</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-check2-circle"></i></div>
-            </div>
-        </div>
-        <div class="summary-card">
-            <div class="stat-top">
-                <div>
-                    <div class="stat-value">@Model.PendingCount</div>
-                    <div class="stat-label">Pending Tickets</div>
-                </div>
-                <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-            </div>
+    <div class="prototype-section client-ticket-overview">
+        <div class="prototype-section-heading"><div class="prototype-section-name"><span>MY TICKETS</span><i></i><small>ACTIVE OVERVIEW</small></div></div>
+        <div class="prototype-metric-grid prototype-user-grid client-metrics">
+            <article class="prototype-metric-card"><div class="prototype-metric-top"><span>Total Requests</span><i class="metric-icon metric-icon-blue bi bi-ticket-detailed"></i></div><div class="prototype-metric-bottom"><strong class="metric-blue-text">@Model.Tickets.Count</strong><small>All support requests</small></div></article>
+            <article class="prototype-metric-card"><div class="prototype-metric-top"><span>Pending Action</span><i class="metric-icon metric-icon-amber bi bi-hourglass-split"></i></div><div class="prototype-metric-bottom"><strong class="metric-amber-text">@Model.PendingCount</strong><small>Awaiting resolution</small></div></article>
+            <article class="prototype-metric-card"><div class="prototype-metric-top"><span>Resolved</span><i class="metric-icon metric-icon-green bi bi-check2-circle"></i></div><div class="prototype-metric-bottom"><strong class="metric-green-text">@Model.ResolvedCount</strong><small>Completed requests</small></div></article>
+            <article class="prototype-metric-card"><div class="prototype-metric-top"><span>Assigned Hardware</span><i class="metric-icon metric-icon-violet bi bi-laptop"></i></div><div class="prototype-metric-bottom"><strong class="metric-violet-text">@Model.Assets.Count</strong><small>Devices assigned to you</small></div></article>
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-xl-7">
-            <div class="table-card">
+            <div class="table-card supporting-card client-data-card">
                 <div class="p-4">
-                        <h5 class="mb-3">My Repair Requests</h5>
+                    <h5 class="mb-3">My Repair Requests</h5>
                     @if (Model.Tickets.Any())
                     {
                         <div class="table-responsive">
@@ -117,7 +105,7 @@
                                         <tr>
                                             <td><a asp-controller="Tickets" asp-action="Details" asp-route-id="@ticket.id">@ticket.title</a></td>
                                             <td>@(string.IsNullOrWhiteSpace(ticket.assigned_technician) ? (ticket.technician_id.HasValue ? "Assigned" : "Waiting") : ticket.assigned_technician)</td>
-                                            <td><span class="badge bg-secondary">@ticket.status</span></td>
+                                            <td><span class="prototype-pill @(string.Equals(ticket.status, "Resolved", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "Closed", StringComparison.OrdinalIgnoreCase) ? "pill-success" : string.Equals(ticket.status, "Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "Open", StringComparison.OrdinalIgnoreCase) ? "pill-warning" : string.Equals(ticket.status, "Assigned", StringComparison.OrdinalIgnoreCase) || string.Equals(ticket.status, "In Progress", StringComparison.OrdinalIgnoreCase) ? "pill-blue" : "pill-neutral")">@ticket.status</span></td>
                                         </tr>
                                     }
                                 </tbody>
@@ -137,7 +125,7 @@
         </div>
 
         <div class="col-xl-5">
-            <div class="table-card">
+            <div class="table-card supporting-card client-data-card">
                 <div class="p-4">
                     <h5 class="mb-3">Assigned Assets</h5>
                     @if (Model.Assets.Any())
