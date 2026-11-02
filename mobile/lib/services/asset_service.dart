@@ -1,4 +1,3 @@
-// Summary: Provides asset listing and detail operations through the asset API.
 // lib/services/asset_service.dart
 
 import '../api/asset_api.dart';
