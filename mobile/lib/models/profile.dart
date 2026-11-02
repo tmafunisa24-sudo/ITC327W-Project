@@ -1,4 +1,6 @@
+
 // lib/models/profile.dart
+
 
 class Profile {
   final String id;

@@ -1,3 +1,4 @@
+
 // lib/models/asset_document.dart
 
 class AssetDocument {

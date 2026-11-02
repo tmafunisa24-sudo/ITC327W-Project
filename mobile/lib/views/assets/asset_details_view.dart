@@ -1,4 +1,6 @@
+
 // lib/views/assets/asset_details_view.dart
+
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
