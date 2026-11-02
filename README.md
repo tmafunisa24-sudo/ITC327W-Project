@@ -141,9 +141,9 @@ We do not have an automated test project. We tested the functions by hand with d
 
 - Documentation index
 - System Requirements Specification (Phases 1 to 3)
-- Phase 1: feasibility study and risk register
-- Phase 2: system architecture, UML, ERD and interface prototype
-- Phase 3: Microsoft Project plan and the Phase 3 progress tracker
+- Phase 1: SRS, feasibility study and risk register
+- Phase 2: SRS, system architecture, UML, ERD and interface prototype
+- Phase 3: SRS, Microsoft Project plan and the Phase 3 progress tracker
 
 ## Group T
 
@@ -165,4 +165,4 @@ Stakeholder: Click Computer and Accessories. Mentor: Mpho Mbele.
 ## Known problems
 
 - There are no automated tests.
-
+- Client–staff communication	Not built. We did not make messaging screens in either app because of limited time.
