@@ -1,11 +1,10 @@
-// This model defines the notification data structure, including user details, message content, notification type, read status, and creation date.
 using System.Text.Json.Serialization;
 
 namespace ServiceHub_IT.Models;
 
 public class Notification
 {
-     [JsonPropertyName("id")]
+    [JsonPropertyName("id")]
     public Guid id { get; set; }
 
     [JsonPropertyName("user_id")]

@@ -23,25 +23,17 @@ public sealed class SupabaseService : ISupabaseService
         _logger = logger;
 
         _httpClient.BaseAddress = new Uri(_settings.Url.TrimEnd('/') + "/");
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-        _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
     }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_settings.Url) && !string.IsNullOrWhiteSpace(_settings.ApiKey);
 
-    private string WriteBearerToken => !string.IsNullOrWhiteSpace(_settings.ServiceRoleKey)
+    private string ReadBearerToken => !string.IsNullOrWhiteSpace(_settings.ServiceRoleKey)
         ? _settings.ServiceRoleKey
         : _settings.ApiKey;
 
-    private void ConfigureJsonHeaders(bool useServiceRole = false)
-    {
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", useServiceRole ? WriteBearerToken : _settings.ApiKey);
-    }
+    private string WriteBearerToken => !string.IsNullOrWhiteSpace(_settings.ServiceRoleKey)
+        ? _settings.ServiceRoleKey
+        : throw new InvalidOperationException("Supabase ServiceRoleKey is required for this backend write operation.");
 
     public async Task<SupabaseConnectionStatus> CheckConnectionAsync(CancellationToken cancellationToken = default)
     {
@@ -241,7 +233,7 @@ public sealed class SupabaseService : ISupabaseService
         };
     }
 
-    public async Task<SupabaseAuthResult> SignUpAsync(string email, string password, CancellationToken cancellationToken = default)
+    public async Task<SupabaseAuthResult> SignUpAsync(string email, string password, string? fullName = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || !IsConfigured)
         {
@@ -258,6 +250,15 @@ public sealed class SupabaseService : ISupabaseService
             ["email"] = email,
             ["password"] = password
         };
+    if (!string.IsNullOrWhiteSpace(fullName))
+    {
+        payloadObject["data"] = new Dictionary<string, object>
+        {
+            ["full_name"] = fullName
+        };
+    }
+
+
 
         var signupRequestUrl = "auth/v1/signup";
         if (!string.IsNullOrWhiteSpace(_settings.RedirectUrl))
@@ -393,8 +394,13 @@ public sealed class SupabaseService : ISupabaseService
 
         email = email.Trim();
         var requestUri = $"rest/v1/profiles?email=eq.{Uri.EscapeDataString(email)}&select=*";
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             var payload = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -411,8 +417,13 @@ public sealed class SupabaseService : ISupabaseService
         }
 
         var fallbackUri = $"rest/v1/profiles?email=ilike.{Uri.EscapeDataString(email)}&select=*";
-        ConfigureJsonHeaders();
-        using var fallbackResponse = await _httpClient.GetAsync(fallbackUri, cancellationToken);
+        using var fallbackRequest = new HttpRequestMessage(HttpMethod.Get, fallbackUri);
+        fallbackRequest.Headers.Clear();
+        fallbackRequest.Headers.Add("apikey", _settings.ApiKey);
+        fallbackRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        fallbackRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var fallbackResponse = await _httpClient.SendAsync(fallbackRequest, cancellationToken);
         if (!fallbackResponse.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase profile lookup by email fallback failed. Status: {StatusCode}, Email: {Email}", fallbackResponse.StatusCode, email);
@@ -424,16 +435,23 @@ public sealed class SupabaseService : ISupabaseService
         return fallbackProfiles?.FirstOrDefault();
     }
 
-    public async Task<Profile?> GetProfileByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Profile?> GetProfileByIdAsync(
+        Guid id,
+        string accessToken,
+        CancellationToken cancellationToken = default)
     {
-        if (id == Guid.Empty || !IsConfigured)
-        {
+        if (id == Guid.Empty || string.IsNullOrWhiteSpace(accessToken) || !IsConfigured)
             return null;
-        }
 
-        var requestUri = $"rest/v1/profiles?id=eq.{Uri.EscapeDataString(id.ToString())}&select=*";
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"rest/v1/profiles?id=eq.{Uri.EscapeDataString(id.ToString())}&select=*");
+        request.Headers.Clear();
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase profile lookup by id failed. Status: {StatusCode}", response.StatusCode);
@@ -447,14 +465,27 @@ public sealed class SupabaseService : ISupabaseService
 
     public async Task<IEnumerable<Profile>> GetAllProfilesAsync(CancellationToken cancellationToken = default)
     {
+        return await GetAllProfilesAsync(null, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Profile>> GetAllProfilesAsync(
+        string? accessToken,
+        CancellationToken cancellationToken = default)
+    {
         if (!IsConfigured)
         {
             return Array.Empty<Profile>();
         }
 
         var requestUri = "rest/v1/profiles?select=*";
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        var token = string.IsNullOrWhiteSpace(accessToken) ? ReadBearerToken : accessToken;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase profile list request failed. Status: {StatusCode}", response.StatusCode);
@@ -468,11 +499,18 @@ public sealed class SupabaseService : ISupabaseService
 
     public async Task<IEnumerable<Profile>> GetTechniciansAsync(CancellationToken cancellationToken = default)
     {
-        ConfigureJsonHeaders();
         return await GetProfilesByRoleAsync("Technician", cancellationToken);
     }
 
     public async Task<IEnumerable<Profile>> GetProfilesByRoleAsync(string role, CancellationToken cancellationToken = default)
+    {
+        return await GetProfilesByRoleAsync(role, null, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Profile>> GetProfilesByRoleAsync(
+        string role,
+        string? accessToken,
+        CancellationToken cancellationToken = default)
     {
         if (!IsConfigured || string.IsNullOrWhiteSpace(role))
         {
@@ -480,8 +518,14 @@ public sealed class SupabaseService : ISupabaseService
         }
 
         var requestUri = $"rest/v1/profiles?role=eq.{Uri.EscapeDataString(role)}&select=*";
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        var token = string.IsNullOrWhiteSpace(accessToken) ? WriteBearerToken : accessToken;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase profile role lookup failed. Status: {StatusCode}", response.StatusCode);
@@ -502,14 +546,15 @@ public sealed class SupabaseService : ISupabaseService
         }
 
         var requestUri = "rest/v1/service_catalog?is_active=eq.true&select=*";
-        ConfigureJsonHeaders();
         _logger.LogInformation("Service catalog request: Endpoint={Endpoint}, HasAccessToken={HasAccessToken}, ApiKeyConfigured={ApiKeyConfigured}",
             requestUri, !string.IsNullOrWhiteSpace(accessToken), !string.IsNullOrWhiteSpace(_settings.ApiKey));
-        if (!string.IsNullOrWhiteSpace(accessToken))
-        {
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        }
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", !string.IsNullOrWhiteSpace(accessToken) ? accessToken : _settings.ApiKey);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         var payload = await response.Content.ReadAsStringAsync(cancellationToken);
         _logger.LogInformation("Service catalog response: StatusCode={StatusCode}, Body={Body}", response.StatusCode, payload);
         if (response.StatusCode == HttpStatusCode.Unauthorized && !string.IsNullOrWhiteSpace(accessToken))
@@ -567,9 +612,10 @@ public sealed class SupabaseService : ISupabaseService
 
         request.Headers.Clear();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        request.Headers.Add("apikey", WriteBearerToken);
+        request.Headers.Add("apikey", _settings.ApiKey);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Add("Prefer", "return=representation");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         return response.IsSuccessStatusCode;
@@ -610,9 +656,10 @@ public sealed class SupabaseService : ISupabaseService
 
         request.Headers.Clear();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        request.Headers.Add("apikey", WriteBearerToken);
+        request.Headers.Add("apikey", _settings.ApiKey);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Add("Prefer", "return=representation");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -667,7 +714,17 @@ public sealed class SupabaseService : ISupabaseService
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<IEnumerable<Notification>> GetUserNotificationsAsync(Guid profileId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Notification>> GetUserNotificationsAsync(
+        Guid profileId,
+        CancellationToken cancellationToken)
+    {
+        return await GetUserNotificationsAsync(profileId, null, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Notification>> GetUserNotificationsAsync(
+        Guid profileId,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
     {
         if (profileId == Guid.Empty || !IsConfigured)
         {
@@ -675,8 +732,14 @@ public sealed class SupabaseService : ISupabaseService
         }
 
         var requestUri = $"rest/v1/notifications?user_id=eq.{Uri.EscapeDataString(profileId.ToString())}&select=*&order=created_at.desc";
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        var token = string.IsNullOrWhiteSpace(accessToken) ? ReadBearerToken : accessToken;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase notifications request failed. Status: {StatusCode}", response.StatusCode);
@@ -688,7 +751,19 @@ public sealed class SupabaseService : ISupabaseService
         return notifications ?? new List<Notification>();
     }
 
-    public async Task<IEnumerable<Notification>> GetNotificationsForUserAsync(Guid profileId, int limit, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Notification>> GetNotificationsForUserAsync(
+        Guid profileId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        return await GetNotificationsForUserAsync(profileId, limit, null, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Notification>> GetNotificationsForUserAsync(
+        Guid profileId,
+        int limit,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
     {
         if (profileId == Guid.Empty || !IsConfigured || limit <= 0)
         {
@@ -696,8 +771,14 @@ public sealed class SupabaseService : ISupabaseService
         }
 
         var requestUri = $"rest/v1/notifications?user_id=eq.{Uri.EscapeDataString(profileId.ToString())}&select=*&order=created_at.desc&limit={limit}";
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        var token = string.IsNullOrWhiteSpace(accessToken) ? ReadBearerToken : accessToken;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase recent notifications request failed. Status: {StatusCode}", response.StatusCode);
@@ -709,7 +790,17 @@ public sealed class SupabaseService : ISupabaseService
         return notifications ?? new List<Notification>();
     }
 
-    public async Task<IEnumerable<Notification>> GetUnreadNotificationsForUserAsync(Guid profileId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Notification>> GetUnreadNotificationsForUserAsync(
+        Guid profileId,
+        CancellationToken cancellationToken)
+    {
+        return await GetUnreadNotificationsForUserAsync(profileId, null, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Notification>> GetUnreadNotificationsForUserAsync(
+        Guid profileId,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
     {
         if (profileId == Guid.Empty || !IsConfigured)
         {
@@ -717,8 +808,14 @@ public sealed class SupabaseService : ISupabaseService
         }
 
         var requestUri = $"rest/v1/notifications?user_id=eq.{Uri.EscapeDataString(profileId.ToString())}&is_read=eq.false&select=*&order=created_at.desc";
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        var token = string.IsNullOrWhiteSpace(accessToken) ? ReadBearerToken : accessToken;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase unread notifications request failed. Status: {StatusCode}", response.StatusCode);
@@ -730,7 +827,17 @@ public sealed class SupabaseService : ISupabaseService
         return notifications ?? new List<Notification>();
     }
 
-    public async Task<int> GetUnreadNotificationCountAsync(Guid profileId, CancellationToken cancellationToken = default)
+    public async Task<int> GetUnreadNotificationCountAsync(
+        Guid profileId,
+        CancellationToken cancellationToken)
+    {
+        return await GetUnreadNotificationCountAsync(profileId, null, cancellationToken);
+    }
+
+    public async Task<int> GetUnreadNotificationCountAsync(
+        Guid profileId,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
     {
         if (profileId == Guid.Empty || !IsConfigured)
         {
@@ -739,8 +846,14 @@ public sealed class SupabaseService : ISupabaseService
 
         var requestUri = $"rest/v1/notifications?user_id=eq.{Uri.EscapeDataString(profileId.ToString())}&is_read=eq.false&select=id";
         _logger.LogInformation("SupabaseService.GetUnreadNotificationCountAsync requestUri={RequestUri}", requestUri);
-        ConfigureJsonHeaders();
-        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        var token = string.IsNullOrWhiteSpace(accessToken) ? ReadBearerToken : accessToken;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Supabase unread count request failed. Status: {StatusCode}; requestUri={RequestUri}", response.StatusCode, requestUri);
@@ -761,15 +874,24 @@ public sealed class SupabaseService : ISupabaseService
             return false;
         }
 
-        ConfigureJsonHeaders(useServiceRole: true);
         var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNameCaseInsensitive = true });
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var response = await _httpClient.PostAsync("rest/v1/notifications", content, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "rest/v1/notifications") { Content = content };
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Add("Prefer", "return=representation");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogWarning("Supabase notification insert failed. Status: {StatusCode}, Body: {Body}", response.StatusCode, responseBody);
-            return false;
+            _logger.LogError("Supabase notification insert failed. Status: {StatusCode}, Body: {Body}", response.StatusCode, responseBody);
+            throw new HttpRequestException(
+                $"Supabase notification insert failed with status {(int)response.StatusCode} ({response.StatusCode}): {responseBody}",
+                null,
+                response.StatusCode);
         }
 
         return true;
@@ -782,11 +904,15 @@ public sealed class SupabaseService : ISupabaseService
             return false;
         }
 
-        ConfigureJsonHeaders(useServiceRole: true);
         using var request = new HttpRequestMessage(HttpMethod.Patch, $"rest/v1/notifications?id=eq.{Uri.EscapeDataString(id.ToString())}&user_id=eq.{Uri.EscapeDataString(profileId.ToString())}")
         {
             Content = new StringContent(JsonSerializer.Serialize(new { is_read = true }), Encoding.UTF8, "application/json")
         };
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Add("Prefer", "return=representation");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         return response.IsSuccessStatusCode;
@@ -799,11 +925,15 @@ public sealed class SupabaseService : ISupabaseService
             return false;
         }
 
-        ConfigureJsonHeaders(useServiceRole: true);
         using var request = new HttpRequestMessage(HttpMethod.Patch, $"rest/v1/notifications?user_id=eq.{Uri.EscapeDataString(profileId.ToString())}&is_read=eq.false")
         {
             Content = new StringContent(JsonSerializer.Serialize(new { is_read = true }), Encoding.UTF8, "application/json")
         };
+        request.Headers.Clear();
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Add("Prefer", "return=representation");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         return response.IsSuccessStatusCode;
@@ -856,18 +986,51 @@ public sealed class SupabaseService : ISupabaseService
             return false;
         }
 
+        // Build payload with snake_case keys to match Supabase columns
+        var payload = new Dictionary<string, object?>
+        {
+            ["id"] = maintenance.id,
+            ["asset_id"] = maintenance.asset_id,
+            ["technician_id"] = maintenance.technician_id,
+            ["problem"] = maintenance.problem,
+            ["solution"] = maintenance.solution,
+            ["maintenance_date"] = maintenance.maintenance_date,
+            ["next_service_date"] = maintenance.next_service_date,
+            ["maintenance_cost"] = maintenance.maintenance_cost,
+            ["status"] = maintenance.status,
+            ["created_at"] = maintenance.created_at ?? DateTime.UtcNow,
+        };
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "rest/v1/maintenance")
         {
-            Content = new StringContent(JsonSerializer.Serialize(maintenance, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }), Encoding.UTF8, "application/json")
+            Content = new StringContent(
+                JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                }),
+                Encoding.UTF8,
+                "application/json")
         };
 
         request.Headers.Clear();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Add("apikey", _settings.ApiKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Add("Prefer", "return=representation");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        return response.IsSuccessStatusCode;
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Supabase maintenance insert failed. Status: {StatusCode}. Response: {Response}",
+                response.StatusCode, responseBody);
+            return false;
+        }
+
+        return true;
     }
 
     public async Task<bool> UpdateMaintenanceAsync(Maintenance maintenance, CancellationToken cancellationToken = default)
@@ -877,18 +1040,50 @@ public sealed class SupabaseService : ISupabaseService
             return false;
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Patch, $"rest/v1/maintenance?id=eq.{Uri.EscapeDataString(maintenance.id.ToString())}")
+        var payload = new Dictionary<string, object?>
         {
-            Content = new StringContent(JsonSerializer.Serialize(maintenance, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }), Encoding.UTF8, "application/json")
+            ["asset_id"] = maintenance.asset_id,
+            ["technician_id"] = maintenance.technician_id,
+            ["problem"] = maintenance.problem,
+            ["solution"] = maintenance.solution,
+            ["maintenance_date"] = maintenance.maintenance_date,
+            ["next_service_date"] = maintenance.next_service_date,
+            ["maintenance_cost"] = maintenance.maintenance_cost,
+            ["status"] = maintenance.status,
+        };
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Patch,
+            $"rest/v1/maintenance?id=eq.{Uri.EscapeDataString(maintenance.id.ToString())}")
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                }),
+                Encoding.UTF8,
+                "application/json")
         };
 
         request.Headers.Clear();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Add("apikey", _settings.ApiKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Add("Prefer", "return=representation");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        return response.IsSuccessStatusCode;
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Supabase maintenance update failed. Status: {StatusCode}. Response: {Response}",
+                response.StatusCode, responseBody);
+            return false;
+        }
+
+        return true;
     }
 
     public async Task<bool> DeleteMaintenanceAsync(Guid id, CancellationToken cancellationToken = default)
@@ -902,63 +1097,220 @@ public sealed class SupabaseService : ISupabaseService
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<bool> SendPasswordResetAsync(string email, CancellationToken cancellationToken = default)
+    public async Task<bool> SendPasswordResetAsync( string email, string redirectTo, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(email) || !IsConfigured)
-        {
-            return false;
-        }
+    if (string.IsNullOrWhiteSpace(email) ||
+        string.IsNullOrWhiteSpace(redirectTo) ||
+        !IsConfigured)
+    {
+        return false;
+    }
 
-        var payload = new { email };
-        using var request = new HttpRequestMessage(HttpMethod.Post, "auth/v1/otp")
-        {
-            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
-        };
+    var url = $"auth/v1/recover?redirect_to={Uri.EscapeDataString(redirectTo)}";
+    var payload = new { email };
 
+    using var request = new HttpRequestMessage(HttpMethod.Post, url)
+    {
+        Content = new StringContent(
+            JsonSerializer.Serialize(payload),
+            Encoding.UTF8,
+            "application/json")
+    };
+
+    request.Headers.Clear();
+    request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+    request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+    using var response = await _httpClient.SendAsync(request, cancellationToken);
+    var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+    if (!response.IsSuccessStatusCode)
+    {
+        _logger.LogWarning(
+            "Supabase password reset request failed. Status: {StatusCode}. Response: {Response}",
+            response.StatusCode, body);
+        return false;
+    }
+
+    return true;
+}
+
+    public async Task<bool> ResetPasswordAsync(
+    string recoveryToken,
+    string newPassword,
+    CancellationToken cancellationToken = default)
+{
+    if (string.IsNullOrWhiteSpace(recoveryToken) ||
+        string.IsNullOrWhiteSpace(newPassword) ||
+        !IsConfigured)
+    {
+        return false;
+    }
+
+    // Step 1: exchange the recovery token for a session
+    var verifyUrl = $"auth/v1/verify?type=recovery&token={Uri.EscapeDataString(recoveryToken)}";
+    using var verifyRequest = new HttpRequestMessage(HttpMethod.Post, verifyUrl)
+    {
+        Content = new StringContent("{}", Encoding.UTF8, "application/json")
+    };
+    verifyRequest.Headers.Clear();
+    verifyRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    verifyRequest.Headers.Add("apikey", _settings.ApiKey);
+    verifyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+
+    using var verifyResponse = await _httpClient.SendAsync(verifyRequest, cancellationToken);
+    var verifyBody = await verifyResponse.Content.ReadAsStringAsync(cancellationToken);
+    if (!verifyResponse.IsSuccessStatusCode)
+    {
+        _logger.LogWarning(
+            "Supabase recovery token verification failed. Status: {StatusCode}. Response: {Response}",
+            verifyResponse.StatusCode, verifyBody);
+        return false;
+    }
+
+    var verifyData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+        verifyBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    var accessToken = verifyData?.GetValueOrDefault("access_token").GetString();
+    if (string.IsNullOrWhiteSpace(accessToken))
+    {
+        _logger.LogWarning("Recovery verification succeeded but returned no access token.");
+        return false;
+    }
+
+    // Step 2: update the password using the session
+    var updatePayload = JsonSerializer.Serialize(new { password = newPassword });
+    using var updateRequest = new HttpRequestMessage(HttpMethod.Put, "auth/v1/user")
+    {
+        Content = new StringContent(updatePayload, Encoding.UTF8, "application/json")
+    };
+    updateRequest.Headers.Clear();
+    updateRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    updateRequest.Headers.Add("apikey", _settings.ApiKey);
+    updateRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+    using var updateResponse = await _httpClient.SendAsync(updateRequest, cancellationToken);
+    var updateBody = await updateResponse.Content.ReadAsStringAsync(cancellationToken);
+    if (!updateResponse.IsSuccessStatusCode)
+    {
+        _logger.LogWarning(
+            "Supabase password update failed. Status: {StatusCode}. Response: {Response}",
+            updateResponse.StatusCode, updateBody);
+        return false;
+    }
+
+    return true;
+}
+    public async Task<Guid?> GetUserIdFromAccessTokenAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken) || !IsConfigured)
+            return null;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "auth/v1/user");
         request.Headers.Clear();
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Add("apikey", _settings.ApiKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+            body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var idText = data?.GetValueOrDefault("id").GetString();
+        return Guid.TryParse(idText, out var id) ? id : null;
+    }
+
+    public async Task<bool> MarkProfileConfirmedAsync(
+        Guid profileId,
+        CancellationToken cancellationToken = default)
+    {
+        if (profileId == Guid.Empty || !IsConfigured)
+            return false;
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["email_verified"] = true,
+            ["status"] = "Active",
+            ["updated_at"] = DateTime.UtcNow
+        };
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Patch,
+            $"rest/v1/profiles?id=eq.{Uri.EscapeDataString(profileId.ToString())}")
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(payload),
+                Encoding.UTF8,
+                "application/json")
+        };
+
+        request.Headers.Add("apikey", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Add("Prefer", "return=representation");
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        var payloadText = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Supabase password reset request failed. Status: {StatusCode}. Response: {Response}", response.StatusCode, payloadText);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning(
+                "MarkProfileConfirmedAsync failed. Status: {StatusCode}. Body: {Body}",
+                response.StatusCode, body);
             return false;
         }
-
         return true;
     }
 
-    public async Task<bool> ResetPasswordAsync(string token, string password, CancellationToken cancellationToken = default)
+    public async Task<bool> SetRoleAndStatusAsync(
+        Guid profileId,
+        string role,
+        string status,
+        bool profileCompleted,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(password) || !IsConfigured)
-        {
+        if (profileId == Guid.Empty || !IsConfigured)
             return false;
-        }
 
-        var payload = new { password, token };
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"auth/v1/verify?type=recovery&token={Uri.EscapeDataString(token)}")
+        var payload = new Dictionary<string, object?>
         {
-            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            ["role"] = NormalizeRole(role),
+            ["status"] = NormalizeStatus(status),
+            ["profile_completed"] = profileCompleted,
+            ["updated_at"] = DateTime.UtcNow
         };
 
-        request.Headers.Clear();
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        using var request = new HttpRequestMessage(
+            HttpMethod.Patch,
+            $"rest/v1/profiles?id=eq.{Uri.EscapeDataString(profileId.ToString())}")
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(payload),
+                Encoding.UTF8,
+                "application/json")
+        };
+
         request.Headers.Add("apikey", _settings.ApiKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", WriteBearerToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Add("Prefer", "return=representation");
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        var payloadText = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Supabase password reset verification failed. Status: {StatusCode}. Response: {Response}", response.StatusCode, payloadText);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning(
+                "SetRoleAndStatusAsync failed. Status: {StatusCode}. Body: {Body}",
+                response.StatusCode, body);
             return false;
         }
-
         return true;
     }
 }

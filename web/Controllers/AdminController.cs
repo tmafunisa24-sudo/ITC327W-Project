@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ServiceHub_IT.DTOs;
 using ServiceHub_IT.Models;
@@ -24,8 +24,9 @@ public class AdminController : Controller
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var tickets = (await _ticketService.GetTicketsAsync(cancellationToken: cancellationToken)).ToList();
-        var profiles = (await _supabaseService.GetAllProfilesAsync(cancellationToken)).ToList();
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        var tickets = (await _ticketService.GetTicketsAsync(cancellationToken: cancellationToken, accessToken: accessToken)).ToList();
+        var profiles = (await _supabaseService.GetAllProfilesAsync(accessToken, cancellationToken)).ToList();
 
         var clientProfiles = profiles.Where(p => string.Equals(p.Role, "Client", StringComparison.OrdinalIgnoreCase)).ToList();
         var technicianProfiles = profiles.Where(p => string.Equals(p.Role, "Technician", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -49,6 +50,8 @@ public class AdminController : Controller
         {
             TotalUsers = profiles.Count,
             PendingApprovals = pendingProfiles.Count,
+            PendingRegistrationApprovals = profiles.Count(p => string.Equals(p.Status, "Pending", StringComparison.OrdinalIgnoreCase)),
+            PendingTechnicianApprovals = profiles.Count(p => string.Equals(p.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase)),
             Employees = clientProfiles.Count,
             Technicians = technicianProfiles.Count,
             Administrators = administratorProfiles.Count,
@@ -171,13 +174,16 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> Users(CancellationToken cancellationToken)
     {
-        var profiles = (await _supabaseService.GetAllProfilesAsync(cancellationToken)).ToList();
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
+        var profiles = (await _supabaseService.GetAllProfilesAsync(accessToken, cancellationToken)).ToList();
         var model = new AdminUsersViewModel
         {
             Profiles = profiles,
             TotalUsers = profiles.Count,
             PendingApprovals = profiles.Count(p => string.Equals(p.Status, "Pending", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(p.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase)),
+            PendingRegistrationApprovals = profiles.Count(p => string.Equals(p.Status, "Pending", StringComparison.OrdinalIgnoreCase)),
+            PendingTechnicianApprovals = profiles.Count(p => string.Equals(p.Status, "Awaiting Approval", StringComparison.OrdinalIgnoreCase)),
             Employees = profiles.Count(p => string.Equals(p.Role, "Client", StringComparison.OrdinalIgnoreCase)),
             Technicians = profiles.Count(p => string.Equals(p.Role, "Technician", StringComparison.OrdinalIgnoreCase)),
             Administrators = profiles.Count(p => string.Equals(p.Role, "Admin", StringComparison.OrdinalIgnoreCase))
@@ -201,7 +207,8 @@ public class AdminController : Controller
     {
         return status?.Trim().ToLowerInvariant() switch
         {
-            "pending" or "awaiting approval" => "Pending",
+            "pending" => "Pending",
+            "awaiting approval" => "Awaiting Approval",
             "active" => "Active",
             "disabled" => "Disabled",
             "approved" => "Approved",
@@ -221,14 +228,18 @@ public class AdminController : Controller
 
         try
         {
-            var profile = await _supabaseService.GetProfileByIdAsync(id, cancellationToken);
+            var profile = await _supabaseService.GetProfileByIdAsync(
+                id,
+                User.FindFirst("supabase_access_token")?.Value ?? string.Empty,
+                cancellationToken);
             if (profile is null)
             {
                 TempData["ErrorMessage"] = "The selected user profile could not be found.";
                 return RedirectToAction(nameof(Users));
             }
 
-            profile.Role = NormalizeRole(role);            profile.Status = NormalizeStatus(status);
+            profile.Role = NormalizeRole(role);
+            profile.Status = NormalizeStatus(status);
             if (string.IsNullOrWhiteSpace(profile.Role))
             {
                 TempData["ErrorMessage"] = "The selected role is not supported.";

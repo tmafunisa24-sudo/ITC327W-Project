@@ -1,4 +1,5 @@
 using System.Text;
+using System.Net.Http.Headers;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using Microsoft.Extensions.Options;
@@ -39,12 +40,13 @@ public class PdfProcessingService
         {
             var path = $"{assetId}/{documentType.ToLowerInvariant()}/{Guid.NewGuid():N}_{file.FileName}";
             var content = new StreamContent(file.OpenReadStream());
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Add("x-upsert", "true");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.Url.TrimEnd('/')}/storage/v1/object/{bucketName}/{path}") { Content = content };
+            request.Headers.Clear();
+            request.Headers.Add("apikey", _settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            request.Headers.Add("x-upsert", "true");
 
-            using var response = await _httpClient.PostAsync($"{_settings.Url.TrimEnd('/')}/storage/v1/object/{bucketName}/{path}", content, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 return (null, null);
@@ -67,12 +69,15 @@ public class PdfProcessingService
         {
             var json = System.Text.Json.JsonSerializer.Serialize(document);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.Url.TrimEnd('/')}/rest/v1/asset_documents") { Content = content };
+            request.Headers.Clear();
+            request.Headers.Add("apikey", _settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Add("Prefer", "return=representation");
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            using var response = await _httpClient.PostAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/asset_documents", content, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
@@ -86,12 +91,13 @@ public class PdfProcessingService
     {
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{_settings.Url.TrimEnd('/')}/rest/v1/asset_documents?asset_id=eq.{assetId}&select=*");
+            request.Headers.Clear();
+            request.Headers.Add("apikey", _settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
-            using var response = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/asset_documents?asset_id=eq.{assetId}&select=*", cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 return Array.Empty<AssetDocument>();

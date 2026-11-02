@@ -1,4 +1,3 @@
-// Manages asset records and asset file storage through Supabase.
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -22,7 +21,7 @@ public class AssetService
         _imageStorageService = imageStorageService;
     }
 
-    public async Task<IReadOnlyList<Asset>> GetAssetsAsync(AssetSearchViewModel search, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Asset>> GetAssetsAsync(AssetSearchViewModel search, CancellationToken cancellationToken = default, string? accessToken = null)
     {
         if (string.IsNullOrWhiteSpace(_settings.Url) || string.IsNullOrWhiteSpace(_settings.ApiKey))
         {
@@ -46,12 +45,13 @@ public class AssetService
             }
 
             var endpoint = $"{_settings.Url.TrimEnd('/')}/rest/v1/assets?{string.Join('&', query)}";
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Headers.Clear();
+            request.Headers.Add("apikey", _settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(accessToken) ? _settings.ApiKey : accessToken);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            using var response = await _httpClient.GetAsync(endpoint, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 return Array.Empty<Asset>();
@@ -74,12 +74,13 @@ public class AssetService
     {
         try
         {
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.ApiKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{_settings.Url.TrimEnd('/')}/rest/v1/assets?id=eq.{id}&select=*");
+            request.Headers.Clear();
+            request.Headers.Add("apikey", _settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            using var response = await _httpClient.GetAsync($"{_settings.Url.TrimEnd('/')}/rest/v1/assets?id=eq.{id}&select=*", cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 return null;

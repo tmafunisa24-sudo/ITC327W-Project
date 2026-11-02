@@ -18,7 +18,8 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Dashboard(CancellationToken cancellationToken)
     {
-        var metrics = await _dashboardService.GetMetricsAsync(cancellationToken);
+        var accessToken = User.FindFirst("supabase_access_token")?.Value ?? string.Empty;
+        var metrics = await _dashboardService.GetMetricsAsync(accessToken, cancellationToken);
         return View(metrics);
     }
 

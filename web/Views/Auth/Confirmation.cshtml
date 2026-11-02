@@ -1,0 +1,32 @@
+@{
+    ViewData["Title"] = "Confirming account";
+    Layout = "_LoginLayout";
+}
+
+<div class="card p-4 fade-in">
+    <h3 class="fw-semibold mb-3">Confirming your account</h3>
+    <p id="confirmation-status" class="text-muted mb-0">Please wait while your email confirmation is completed.</p>
+
+    <form id="confirmation-form" asp-action="Confirmation" method="post" class="d-none">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="accessToken" id="access-token" />
+        <input type="hidden" name="refreshToken" id="refresh-token" />
+    </form>
+</div>
+
+<script>
+    (() => {
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = params.get('access_token');
+        const status = document.getElementById('confirmation-status');
+
+        if (!accessToken) {
+            status.textContent = 'This confirmation link is invalid or expired. Please request a new confirmation email.';
+            return;
+        }
+
+        document.getElementById('access-token').value = accessToken;
+        document.getElementById('refresh-token').value = params.get('refresh_token') || '';
+        document.getElementById('confirmation-form').submit();
+    })();
+</script>

@@ -13,6 +13,8 @@
     var assignedTechnicianName = assignedTechnicianProfile is not null
         ? (!string.IsNullOrWhiteSpace(assignedTechnicianProfile.FullName) ? assignedTechnicianProfile.FullName : assignedTechnicianProfile.Email)
         : (string.IsNullOrWhiteSpace(Model.assigned_technician) ? "Unassigned" : Model.assigned_technician);
+    var selectedTechnicianId = Model.technician_id
+        ?? technicians.FirstOrDefault(technician => string.Equals(technician.Email, Model.assigned_technician, StringComparison.OrdinalIgnoreCase))?.Id;
 }
 
 @section Styles {
@@ -173,6 +175,48 @@
                 <div class="ticket-actions">
                     @if (isAdmin)
                     {
+                        <div class="ticket-action-card mb-3">
+                            <div class="card-body p-4">
+                                <h5 class="mb-3">Update Ticket</h5>
+                                <form asp-controller="Tickets" asp-action="UpdateStatus" asp-route-id="@Model.id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <div class="mb-3">
+                                        <label class="form-label" for="adminTicketStatus">Status</label>
+                                        <select id="adminTicketStatus" name="Status" class="form-select ticket-select">
+                                            @foreach (var status in new[] { "Open", "Assigned", "In Progress", "Resolved", "Closed" })
+                                            {
+                                                <option value="@status" selected="@string.Equals(Model.status, status, StringComparison.OrdinalIgnoreCase)">@status</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="assignedTechnicianId">Assign Technician</label>
+                                        <input type="hidden" name="AssignmentSubmitted" value="true" />
+                                        <select id="assignedTechnicianId" name="AssignedTechnicianId" class="form-select">
+                                            <option value="" selected="@(!selectedTechnicianId.HasValue)">Unassigned</option>
+                                            @foreach (var technician in technicians.OrderBy(technician => technician.FullName).ThenBy(technician => technician.Email))
+                                            {
+                                                if (technician.Id != Guid.Empty && !string.IsNullOrWhiteSpace(technician.Email))
+                                                {
+                                                    <option value="@technician.Id" selected="@(selectedTechnicianId == technician.Id)">
+                                                        @(string.IsNullOrWhiteSpace(technician.FullName) ? technician.Email : technician.FullName)
+                                                    </option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="adminDueDate">Due Date</label>
+                                        <input type="date" id="adminDueDate" name="DueDate" class="form-control ticket-date-input" value="@(Model.due_date?.ToString("yyyy-MM-dd"))" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="adminTicketComment">Comment</label>
+                                        <textarea id="adminTicketComment" name="Comment" class="form-control" rows="3" placeholder="Add an update"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-assign w-100">Save Ticket</button>
+                                </form>
+                            </div>
+                        </div>
                         <div class="ticket-action-card mb-3">
                             <div class="card-body p-4">
                                 <h5 class="mb-3">Update Due Date</h5>

@@ -1,4 +1,3 @@
-// Summary: Supplies dashboard data for the technician dashboard.
 using ServiceHub_IT.Models;
 
 namespace ServiceHub_IT.DTOs;

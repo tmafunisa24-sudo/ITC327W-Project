@@ -20,10 +20,11 @@ public class TechnicianController : Controller
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
         var email = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? string.Empty;
         var profileId = Guid.TryParse(User.FindFirst("profile_id")?.Value, out var parsedProfileId) ? parsedProfileId : Guid.Empty;
-        var tickets = (await _ticketService.GetTechnicianTicketsAsync(profileId, email, cancellationToken)).ToList();
-        var assets = (await _assetService.GetAssetsAsync(new AssetSearchViewModel(), cancellationToken)).ToList();
+        var tickets = (await _ticketService.GetTechnicianTicketsAsync(profileId, email, accessToken, cancellationToken)).ToList();
+        var assets = (await _assetService.GetAssetsAsync(new AssetSearchViewModel(), cancellationToken, accessToken)).ToList();
         var assignedAssets = assets.Where(a => string.Equals(a.assigned_employee, email, StringComparison.OrdinalIgnoreCase)).ToList();
 
         var model = new TechnicianDashboardViewModel

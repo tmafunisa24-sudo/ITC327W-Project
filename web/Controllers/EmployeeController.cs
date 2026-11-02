@@ -6,10 +6,6 @@ using ServiceHub_IT.Services;
 
 namespace ServiceHub_IT.Controllers;
 
-/// <summary>
-/// Client dashboard: shows the client's own tickets and assigned assets, and the enquiry page.
-/// </summary>
-/// 
 [Authorize(Roles = "Client")]
 public class EmployeeController : Controller
 {
@@ -24,12 +20,13 @@ public class EmployeeController : Controller
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        var accessToken = User.FindFirst("supabase_access_token")?.Value;
         var email = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? string.Empty;
         var profileId = GetCurrentProfileId();
         var tickets = profileId == Guid.Empty
             ? Array.Empty<Ticket>().ToList()
-            : (await _ticketService.GetTicketsAsync(employeeId: profileId, cancellationToken: cancellationToken)).ToList();
-        var assets = (await _assetService.GetAssetsAsync(new AssetSearchViewModel(), cancellationToken)).ToList();
+            : (await _ticketService.GetTicketsAsync(employeeId: profileId, cancellationToken: cancellationToken, accessToken: accessToken)).ToList();
+        var assets = (await _assetService.GetAssetsAsync(new AssetSearchViewModel(), cancellationToken, accessToken)).ToList();
         var assignedAssets = assets.Where(a => string.Equals(a.assigned_employee, email, StringComparison.OrdinalIgnoreCase)).ToList();
 
         var model = new EmployeeDashboardViewModel

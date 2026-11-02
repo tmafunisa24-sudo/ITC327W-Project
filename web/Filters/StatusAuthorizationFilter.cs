@@ -23,13 +23,20 @@ public sealed class StatusAuthorizationFilter : IAsyncAuthorizationFilter
             return;
         }
 
-        var email = context.HttpContext.User.FindFirstValue(ClaimTypes.Email);
-        if (string.IsNullOrWhiteSpace(email))
+        var accessToken = context.HttpContext.User.FindFirst("supabase_access_token")?.Value;
+        if (string.IsNullOrWhiteSpace(accessToken))
         {
             return;
         }
 
-        var profile = await _supabaseService.GetProfileByEmailAsync(email, context.HttpContext.RequestAborted);
+        var userIdClaim = context.HttpContext.User.FindFirst("profile_id")?.Value
+            ?? context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return;
+        }
+
+        var profile = await _supabaseService.GetProfileByIdAsync(userId, accessToken, context.HttpContext.RequestAborted);
         if (profile is null)
         {
             await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

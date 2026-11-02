@@ -1,4 +1,3 @@
-// This service handles creating notifications for individual users, email addresses, and specified user roles through Supabase.
 using System.Text.Json.Serialization;
 using ServiceHub_IT.Interfaces;
 using ServiceHub_IT.Models;
@@ -7,7 +6,7 @@ namespace ServiceHub_IT.Services;
 
 public class NotificationService
 {
-     private readonly ISupabaseService _supabaseService;
+    private readonly ISupabaseService _supabaseService;
     private readonly ILogger<NotificationService> _logger;
 
     public NotificationService(ISupabaseService supabaseService, ILogger<NotificationService> logger)
@@ -38,7 +37,8 @@ public class NotificationService
         var created = await _supabaseService.CreateNotificationAsync(notification, cancellationToken);
         if (!created)
         {
-            _logger.LogWarning("NotificationService failed to create notification for user {UserId} title {Title} link {Link}", userId, title, link);
+            throw new InvalidOperationException(
+                $"Notification insert returned an unsuccessful result for user {userId}, title '{title}', link '{link}'.");
         }
     }
 
